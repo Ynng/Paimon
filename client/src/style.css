@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotation {
+  0% {
+    --gradient-angle: 0deg;
+  }
+  100% {
+    --gradient-angle: 360deg;
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply m-0 h-full bg-transparent p-0;
+  }
+}
+
+@layer components {
+  .apple-intelligence-bg {
+    @apply relative h-full w-full overflow-hidden;
+    background: linear-gradient(
+      var(--gradient-angle),
+      #007aff,
+      #5856d6,
+      #ff2d55,
+      #ff9500
+    );
+    --border-base: 0rem;
+    --solid-width: 0px;
+    --fade-start: 10px;
+    --fade-end: 15px;
+    --fade-opacity: 0.1;
+
+    animation: rotation 5s linear infinite;
+    -webkit-mask:
+      linear-gradient(
+        to right,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to left,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to bottom,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to top,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      );
+    mask:
+      linear-gradient(
+        to right,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to left,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to bottom,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      ),
+      linear-gradient(
+        to top,
+        black 0%,
+        black calc(var(--border-base) + var(--solid-width)),
+        rgba(0, 0, 0, var(--fade-opacity))
+          calc(var(--border-base) + var(--fade-start)),
+        transparent calc(var(--border-base) + var(--fade-end))
+      );
+  }
+}
+
+@custom-variant macos (&:where(.macos *));

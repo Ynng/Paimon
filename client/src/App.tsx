@@ -1,8 +1,7 @@
-import "./App.css";
 import { getScreenshotableWindows, getWindowScreenshot, getScreenshotableMonitors, getMonitorScreenshot } from "tauri-plugin-screenshots-api";
 import { useState } from "react";
 
-function App() {
+export function App() {
   const [screenshotPath, setScreenshotPath] = useState<string | null>(null);
 
   const takeWindowScreenshot = async () => {
@@ -30,15 +29,25 @@ function App() {
   };
 
   return (
-    <main className="container">
-      <h1>Screenshot Demo</h1>
-      <div className="button-group">
-        <button onClick={takeWindowScreenshot}>Take Window Screenshot</button>
-        <button onClick={takeMonitorScreenshot}>Take Monitor Screenshot</button>
+    <main className="max-w-4xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6 text-center">Screenshot Demo</h1>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+        <button 
+          onClick={takeWindowScreenshot}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors"
+        >
+          Take Window Screenshot
+        </button>
+        <button 
+          onClick={takeMonitorScreenshot}
+          className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded transition-colors"
+        >
+          Take Monitor Screenshot
+        </button>
       </div>
       {screenshotPath && (
-        <div className="result">
-          <p>Screenshot saved at: {screenshotPath}</p>
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+          <p className="text-gray-800 break-all">Screenshot saved at: {screenshotPath}</p>
         </div>
       )}
     </main>
