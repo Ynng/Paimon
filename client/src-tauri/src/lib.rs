@@ -1,6 +1,7 @@
 use cocoa::appkit::NSWindow;
 use tauri::{
-    ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager, PhysicalPosition, PhysicalSize, WebviewWindow
+    ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager,
+    PhysicalPosition, PhysicalSize, WebviewWindow,
 };
 use tauri_nspanel::{cocoa::appkit::NSWindowCollectionBehavior, panel_delegate, WebviewWindowExt};
 
@@ -90,36 +91,69 @@ fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_screenshots::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
-            window
+            let overlay_window = app.get_webview_window("overlay").unwrap();
+            overlay_window
                 .set_ignore_cursor_events(true)
                 .unwrap_or_else(|err| println!("{:?}", err));
             // Setup NSPanel for macOS
             #[cfg(target_os = "macos")]
             {
                 let mut app_ref = app.handle().clone();
-                setup_nspanel(&mut app_ref, window.clone());
+                setup_nspanel(&mut app_ref, overlay_window.clone());
             }
 
-            let nswindow: cocoa::base::id = window.ns_window().unwrap() as _;
+            let nswindow: cocoa::base::id = overlay_window.ns_window().unwrap() as _;
             // nswindow.setCollectionBehavior_(NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces);
-            
+
             // Make the window cover the entire screen
-            if let Some(monitor) = window.current_monitor().unwrap_or(None) {
+            if let Some(monitor) = overlay_window.current_monitor().unwrap_or(None) {
                 let size = monitor.size();
                 let position = monitor.position();
 
-                window
+                overlay_window
                     .set_position(tauri::Position::Physical(*position))
                     .unwrap_or_else(|err| println!("Failed to set position: {:?}", err));
 
-                window
+                overlay_window
                     .set_size(tauri::Size::Physical(*size))
                     .unwrap_or_else(|err| println!("Failed to set size: {:?}", err));
             } else {
                 println!("Failed to get monitor information");
+            }
+
+            let main_window = app.get_webview_window("main").unwrap();
+            if let Some(monitor) = main_window.current_monitor().unwrap_or(None) {
+                let size = monitor.size();
+                let position = monitor.position();
+                let scale_factor = monitor.scale_factor();
+
+                // Set width to 400px
+                let window_width = (400.0 * scale_factor) as u32;
+                // Position on the right side with 32px inset
+                let x_position = position.x + (size.width as i32)
+                    - (window_width as i32)
+                    - (64.0 * scale_factor) as i32;
+                let height = size.height - (64.0 * 2.0 * scale_factor) as u32;
+                let y_position = position.y + (64.0 * scale_factor) as i32;
+
+                main_window
+                    .set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                        width: window_width,
+                        height: height,
+                    }))
+                    .unwrap_or_else(|err| println!("Failed to set main window size: {:?}", err));
+
+                main_window
+                    .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                        x: x_position,
+                        y: y_position,
+                    }))
+                    .unwrap_or_else(|err| {
+                        println!("Failed to set main window position: {:?}", err)
+                    });
             }
 
             Ok(())
@@ -128,3 +162,5 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// /Users/winkey/Library/Application Support/com.paimon.app/tauri-plugin-screenshots/monitor-1.png
