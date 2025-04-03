@@ -229,7 +229,15 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::windowing::set_hide_from_screenshot,
-            commands::image::get_screenshot
+            commands::image::get_screenshot,
+            commands::action::click,
+            commands::action::scroll,
+            commands::action::double_click,
+            commands::action::keypress,
+            commands::action::type_text,
+            commands::action::wait,
+            commands::action::move_mouse,
+            commands::action::drag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { currentMonitor } from "@tauri-apps/api/window";
 import { platform } from "@tauri-apps/plugin-os";
 import { getScreenshot } from "../screenshot";
@@ -36,7 +37,7 @@ export class TauriComputer {
     x: number | string,
     y: number | string,
   ): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("click", { button, x, y });
   }
 
   async scroll(
@@ -45,19 +46,19 @@ export class TauriComputer {
     scrollX: number,
     scrollY: number,
   ): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("scroll", { x, y, scrollX, scrollY });
   }
 
   async double_click(x: number, y: number): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("double_click", { x, y });
   }
 
   async keypress(keys: string[]): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("keypress", { keys });
   }
 
   async type(text: string): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("type_text", { text });
   }
 
   async wait(ms: number = 250): Promise<void> {
@@ -65,10 +66,10 @@ export class TauriComputer {
   }
 
   async move(x: number, y: number): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("move_mouse", { x, y });
   }
 
   async drag(path: { x: number; y: number }[]): Promise<void> {
-    throw new Error("Not implemented");
+    await invoke("drag", { path });
   }
 }

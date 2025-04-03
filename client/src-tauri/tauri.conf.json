@@ -35,6 +35,7 @@
         "skipTaskbar": false,
         "decorations": false,
         "titleBarStyle": "Overlay",
+        "acceptFirstMouse": true,
         "windowEffects": {
           "effects": [
             "sidebar",

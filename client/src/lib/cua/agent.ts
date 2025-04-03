@@ -11,7 +11,6 @@ export class Agent {
   private tools: OpenAI.Responses.Tool[];
   private printSteps: boolean = true;
   private acknowledgeSafetyCheckCallback: AcknowledgeSafetyCheckCallback;
-  public lastResponseId: string | undefined = undefined;
 
   constructor(
     model: string = "computer-use-preview",
@@ -42,9 +41,9 @@ export class Agent {
     return await this.client.responses.create(options);
   }
 
-  async getAction(
+  async getResponse(
     inputItems: OpenAI.Responses.ResponseInput,
-    previousResponseId: string | undefined,
+    previousResponseId: string | null,
   ): Promise<OpenAI.Responses.Response> {
     const response = await this.createResponse({
       model: this.model,
@@ -65,15 +64,15 @@ export class Agent {
     output: OpenAI.Responses.ResponseOutputItem[],
   ): Promise<
     (
-      | OpenAI.Responses.ResponseOutputMessage
-      | OpenAI.Responses.ResponseComputerToolCallOutputItem
-      | OpenAI.Responses.ResponseFunctionToolCallOutputItem
+      | OpenAI.Responses.ResponseInputItem.Message
+      | OpenAI.Responses.ResponseInputItem.ComputerCallOutput
+      | OpenAI.Responses.ResponseInputItem.FunctionCallOutput
     )[]
   > {
     const actions: Promise<
-      | OpenAI.Responses.ResponseOutputMessage
-      | OpenAI.Responses.ResponseComputerToolCallOutputItem
-      | OpenAI.Responses.ResponseFunctionToolCallOutputItem
+      | OpenAI.Responses.ResponseInputItem.Message
+      | OpenAI.Responses.ResponseInputItem.ComputerCallOutput
+      | OpenAI.Responses.ResponseInputItem.FunctionCallOutput
     >[] = [];
     for (const item of output) {
       if (item.type === "message") {
@@ -93,7 +92,7 @@ export class Agent {
 
   async takeComputerAction(
     computerItem: OpenAI.Responses.ResponseComputerToolCall,
-  ): Promise<OpenAI.Responses.ResponseComputerToolCallOutputItem> {
+  ): Promise<OpenAI.Responses.ResponseInputItem.ComputerCallOutput> {
     const action = computerItem.action;
     const actionType = action.type;
     const actionArgs = Object.fromEntries(
@@ -101,6 +100,7 @@ export class Agent {
     );
 
     if (this.printSteps) {
+      console.log("computerItem", computerItem);
       console.log(`${actionType}(${JSON.stringify(actionArgs)})`);
     }
 
@@ -114,6 +114,7 @@ export class Agent {
     await method.apply(this.computer, Object.values(actionArgs));
 
     const screenshot = await this.computer.screenshot();
+    console.log("screenshot", screenshot);
 
     // Handle safety checks
     const pendingChecks = computerItem.pending_safety_checks || [];
@@ -127,20 +128,19 @@ export class Agent {
     }
 
     return {
-      id: computerItem.id,
       type: "computer_call_output",
       call_id: computerItem.call_id,
       acknowledged_safety_checks: pendingChecks,
       output: {
         type: "computer_screenshot",
-        image_url: `data:image/png;base64,${screenshot}`,
+        image_url: screenshot,
       },
     };
   }
 
   async takeFunctionAction(
     functionItem: OpenAI.Responses.ResponseFunctionToolCall,
-  ): Promise<OpenAI.Responses.ResponseFunctionToolCallOutputItem> {
+  ): Promise<OpenAI.Responses.ResponseInputItem.FunctionCallOutput> {
     const name = functionItem.name;
     const args = JSON.parse(functionItem.arguments);
     if (this.printSteps) {

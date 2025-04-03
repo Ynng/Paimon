@@ -112,8 +112,18 @@
 
 @custom-variant macos (&:where(.macos *));
 
+:root{
+  --scrollbar: hsl(0 0% 75%);
+  --scrollbar-hover: hsl(0 0% 48%);
+}
+
+.dark {
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.552 0.016 285.938);
+}
+
 :root {
-  --radius: 1rem;
+  --radius: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -145,8 +155,6 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
-  --scrollbar: hsl(0 0% 75%);
-  --scrollbar-hover: hsl(0 0% 48%);
 }
 
 .dark {
@@ -181,9 +189,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
-  --scrollbar: hsl(0 0% 52%);
-  --scrollbar-hover: hsl(0 0% 63%);
 }
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

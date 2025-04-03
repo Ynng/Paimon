@@ -17,9 +17,14 @@ pub async fn get_screenshot<R: Runtime>(handle: AppHandle<R>) -> Result<Screensh
     let monitors = get_screenshotable_monitors().await?;
     let screenshot_path = get_monitor_screenshot(handle, monitors[0].id).await?;
     let image = ImageReader::open(&screenshot_path).map_err(|e| e.to_string())?;
-    let image = image.decode().map_err(|e| e.to_string())?;
+    let mut image = image.decode().map_err(|e| e.to_string())?;
     // image size limit for openai api
-    let image = image.resize(2000, 768, FilterType::CatmullRom);
+    image = image.resize(2000, 768, FilterType::CatmullRom);
+
+    // If the image has an alpha channel, convert it to RGB
+    if image.color().has_alpha() {
+        image = image.to_rgb8().into();
+    }
 
     // Create a jpg path with the same name but different extension
     let jpg_path = Path::new(&screenshot_path).with_extension("jpg");
