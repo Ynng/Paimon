@@ -58,8 +58,8 @@ export class TauriComputer {
     await invoke("scroll", {
       x,
       y,
-      scrollX: scrollX / 100,
-      scrollY: scrollY / 100,
+      scrollX: scrollX / 25,
+      scrollY: scrollY / 25,
     });
   }
 
