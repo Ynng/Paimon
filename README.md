@@ -3,9 +3,11 @@
 Paimon is a computer autopilot software.
 It's not a chatbot, it performs tasks for you, on your computer, using your keyboard and mouse.
 
-## Development Roadmap
+## Roadmap
 
-- [ ] Implement CUA loop functionality
+- [x] Implement CUA loop
+- [ ] Better prompting
+- [ ] Nicer looking overlay
 - [ ] Windows support
 - [ ] Linux support
 - [ ] Fix UI for multi-monitor setups

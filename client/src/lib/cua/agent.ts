@@ -45,6 +45,31 @@ export class Agent {
     inputItems: OpenAI.Responses.ResponseInput,
     previousResponseId: string | null,
   ): Promise<OpenAI.Responses.Response> {
+    // If no previousResponseId, insert the system prompt before other inputs
+    if (!previousResponseId) {
+      // Check if the first message is already a system message
+      const hasSystemMessage =
+        inputItems.length > 0 &&
+        "role" in inputItems[0] &&
+        inputItems[0].role === "system";
+
+      if (!hasSystemMessage) {
+        inputItems = [
+          {
+            role: "system",
+            content:
+              "You are a helpful assistant that can use a macos desktop to accomplish tasks. Your starting point is the macos desktop. Use the windows, files and applications available to you to accomplish the task. Do not ask clarifying questions unless you are stuck, it's better to try things out and get some results before asking for help.",
+          },
+          ...inputItems,
+          {
+            role: "assistant",
+            content:
+              "I'll help you with that task.",
+          },
+        ];
+      }
+    }
+
     const response = await this.createResponse({
       model: this.model,
       input: inputItems,

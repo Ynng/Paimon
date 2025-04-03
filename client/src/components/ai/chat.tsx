@@ -212,7 +212,7 @@ export function Chat({ className, ...props }: ChatProps) {
       // stepData are the new steps
       // there could be multiple, if the AI asked for an immediate screenshot or thought or something
 
-      // Find the first message, computer call, and function call items
+      // TODO: process all output items, not just the first one of each type
       const messageItem: OpenAI.Responses.ResponseOutputItem | undefined =
         response.output.find((item) => item.type === "message");
       const computerItem: OpenAI.Responses.ResponseOutputItem | undefined =
@@ -388,14 +388,8 @@ export function Chat({ className, ...props }: ChatProps) {
       {...props}
     >
       <div
-        className={cn(
-          "apple-intelligence-bg pointer-events-none absolute inset-0 z-50 rounded-[20px]",
-          !isWaitingForAgent && "opacity-0",
-        )}
-      />
-      <div
         ref={chatContainerRef}
-        className="macos:pt-6 flex min-h-0 w-full grow flex-col items-stretch justify-start gap-y-4 overflow-x-hidden overflow-y-auto p-2 pt-2"
+        className="macos:pt-6 flex min-h-0 w-full grow flex-col items-stretch justify-start gap-y-4 overflow-x-hidden overflow-y-auto px-4 pt-2"
         data-tauri-drag-region
       >
         {uiState.steps.map((step, index) => {
@@ -480,6 +474,8 @@ export function Chat({ className, ...props }: ChatProps) {
             className="absolute right-2 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
             onClick={() => {
               setIsAgentFinished(true);
+              setIsWaitingForAgent(false);
+              setIsWaitingForInput(true);
               setUserInput("");
               setUiState({
                 steps: [],
@@ -487,6 +483,7 @@ export function Chat({ className, ...props }: ChatProps) {
               agentStateRef.current = {
                 steps: [],
               };
+              
               currentResponseIdRef.current = null;
             }}
           >
