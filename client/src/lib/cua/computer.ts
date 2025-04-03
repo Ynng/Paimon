@@ -49,7 +49,14 @@ export class TauriComputer {
     scrollX: number,
     scrollY: number,
   ): Promise<void> {
-    await invoke("scroll", { x, y, scrollX, scrollY });
+    // I think chatgpt wants to scroll by pixels
+    // 1 tick of scroll is like 30pixels for me though
+    await invoke("scroll", {
+      x,
+      y,
+      scrollX: scrollX / 100,
+      scrollY: scrollY / 100,
+    });
   }
 
   async double_click(x: number, y: number): Promise<void> {

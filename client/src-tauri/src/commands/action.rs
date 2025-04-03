@@ -9,7 +9,12 @@ use std::time::Duration;
 use tauri::{command, AppHandle, Emitter, Runtime};
 
 #[command]
-pub fn click<R: Runtime>(handle: AppHandle<R>, button: &str, x: f64, y: f64) -> Result<(), String> {
+pub fn click<R: Runtime>(
+    handle: AppHandle<R>,
+    button: &str,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
     log::info!("agent: clicking at {}, {}", x, y);
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
@@ -19,6 +24,7 @@ pub fn click<R: Runtime>(handle: AppHandle<R>, button: &str, x: f64, y: f64) -> 
         .move_mouse(x as i32, y as i32, Coordinate::Abs)
         .map_err(|e| format!("Failed to move mouse: {}", e))?;
 
+    thread::sleep(Duration::from_millis(10));
     // Determine which button to click
     let button_type = match button.to_lowercase().as_str() {
         "left" => Button::Left,
@@ -26,7 +32,6 @@ pub fn click<R: Runtime>(handle: AppHandle<R>, button: &str, x: f64, y: f64) -> 
         "middle" => Button::Middle,
         _ => return Err(format!("Unsupported mouse button: {}", button)),
     };
-
     // Perform click
     enigo
         .button(button_type, Click)
@@ -43,17 +48,21 @@ pub fn scroll<R: Runtime>(
     handle: AppHandle<R>,
     x: f64,
     y: f64,
-    scroll_x: i32,
-    scroll_y: i32,
+    scroll_x: f64,
+    scroll_y: f64,
 ) -> Result<(), String> {
     log::info!("agent: scrolling at {}, {}", x, y);
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
 
+    let scroll_x = scroll_x as i32;
+    let scroll_y = scroll_y as i32;
     // Move to position first
     enigo
         .move_mouse(x as i32, y as i32, Coordinate::Abs)
         .map_err(|e| format!("Failed to move mouse: {}", e))?;
+
+    thread::sleep(Duration::from_millis(10));
 
     // Perform scroll
     if scroll_x != 0 {

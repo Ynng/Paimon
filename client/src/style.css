@@ -58,8 +58,8 @@
     );
     --border-base: 0rem;
     --solid-width: 0px;
-    --fade-start: 25px;
-    --fade-end: 50px;
+    --fade-start: 15px;
+    --fade-end: 25px;
     --fade-opacity: 0.3;
 
     animation: rotation 5s linear infinite;

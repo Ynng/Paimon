@@ -2,7 +2,9 @@ import { getResponse, takeAction } from "@/lib/cua";
 import * as CUA from "@/lib/cua";
 import { cn } from "@/lib/utils";
 import { appStore } from "@/stores/app";
+import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SparkleIcon, SparklesIcon, SquarePenIcon } from "lucide-react";
 import OpenAI from "openai";
 import { usePostHog } from "posthog-js/react";
@@ -90,7 +92,7 @@ interface AgentState {
 export function Chat({ className, ...props }: ChatProps) {
   const snap = useSnapshot(appStore);
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
-  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
+  const [isWaitingForInput, setIsWaitingForInput] = useState(true);
   const [userInput, setUserInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const currentResponseIdRef = useRef<string | null>(null);
@@ -114,6 +116,7 @@ export function Chat({ className, ...props }: ChatProps) {
     emit("agent_waiting_for_agent", {
       isWaitingForAgent,
     });
+    getCurrentWindow().setIgnoreCursorEvents(isWaitingForAgent);
   }, [isWaitingForAgent]);
 
   useEffect(() => {
@@ -453,6 +456,7 @@ export function Chat({ className, ...props }: ChatProps) {
             placeholder={
               isWaitingForInput ? "What's on your mind?" : "Thinking..."
             }
+            disabled={!isWaitingForInput}
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={(e) => {
@@ -495,8 +499,11 @@ export function Chat({ className, ...props }: ChatProps) {
             variant="ghost"
             className="absolute right-8 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
             onClick={() => {
-              emit("agent_keypress", {
-                keys: ["Enter"],
+              invoke("scroll", {
+                x: 200,
+                y: 200,
+                scrollX: 0,
+                scrollY: 1,
               });
             }}
           >

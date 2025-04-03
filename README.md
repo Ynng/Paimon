@@ -3,6 +3,13 @@
 Paimon is a computer autopilot software.
 It's not a chatbot, it performs tasks for you, on your computer, using your keyboard and mouse.
 
+Current limitations:
+
+- Only works on MacOS
+- No way to pause execution
+- Only works on the primary monitor
+- Does not support hidpi
+
 ## Roadmap
 
 - [x] Implement CUA loop
@@ -14,18 +21,10 @@ It's not a chatbot, it performs tasks for you, on your computer, using your keyb
 - [ ] Introduce hosted solution with simplified access
 - [ ] Voice control
 
-## Special Acknowledgements
+## Acknowledgements
 
-We extend our sincere gratitude to the following repositories whose exemplary code contributions have significantly influenced our implementation:
+This project heavily references code from:
 
-- [cua-browser](https://github.com/browserbase/cua-browser)
-- [ecopaste](https://github.com/EcoPasteHub/EcoPaste)
-
-## Open Source Acknowledgements
-
-This project utilizes the following open source technologies:
-
-- [OpenAI](https://openai.com)
-- [Tauri](https://tauri.app)
-- [React](https://reactjs.org)
-- [TypeScript](https://www.typescriptlang.org)
+- [cua-browser](https://github.com/browserbase/cua-browser) - Computer Use Agent implementation
+- [ecopaste](https://github.com/EcoPasteHub/EcoPaste) - UI components and Tauri integration
+- [planck](https://www.planckapp.com/) - Implementation

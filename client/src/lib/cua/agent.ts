@@ -58,13 +58,12 @@ export class Agent {
           {
             role: "system",
             content:
-              "You are a helpful assistant that can use a macos desktop to accomplish tasks. Your starting point is the macos desktop. Use the windows, files and applications available to you to accomplish the task. Do not ask clarifying questions unless you are stuck, it's better to try things out and get some results before asking for help.",
+              "You are a helpful assistant that can use a macos desktop to accomplish tasks. Your starting point is the macos desktop. Use the windows, files and applications available to you to accomplish the task. Do not ask clarifying questions unless you are stuck, it's better to try things out and get some results. Do not ask the user for confirmation unless the user specifically asked you to. By default you should execute any task to completion without needing user intervention.",
           },
           ...inputItems,
           {
             role: "assistant",
-            content:
-              "I'll help you with that task.",
+            content: "I'll help you with that task.",
           },
         ];
       }
@@ -139,8 +138,11 @@ export class Agent {
     ] as (...args: unknown[]) => unknown;
     await method.apply(this.computer, Object.values(actionArgs));
 
+    // wait 300ms
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     const screenshot = await this.computer.screenshot();
-    
+
     const pendingChecks = computerItem.pending_safety_checks || [];
     for (const check of pendingChecks) {
       const message = check.message;
