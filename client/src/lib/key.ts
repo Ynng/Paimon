@@ -1,4 +1,6 @@
-const platform = (window as any).__TAURI_PLUGIN_OS__.platform();
+import { platform as platformPlugin } from "@tauri-apps/plugin-os";
+
+const platform = platformPlugin();
 
 export interface Key {
   symbol: string;

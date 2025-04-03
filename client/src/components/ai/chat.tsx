@@ -1,15 +1,20 @@
 import { getResponse, takeAction } from "@/lib/cua";
-import * as CUA from "@/lib/cua";
+import { useGlobalShortcut } from "@/lib/shortcut";
 import { cn } from "@/lib/utils";
 import { appStore } from "@/stores/app";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { SparkleIcon, SparklesIcon, SquarePenIcon } from "lucide-react";
+import {
+  LoaderCircle,
+  SparkleIcon,
+  SparklesIcon,
+  SquarePenIcon,
+} from "lucide-react";
 import OpenAI from "openai";
 import { usePostHog } from "posthog-js/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocalStorage, useSessionStorage } from "usehooks-ts";
+import { useLocalStorage } from "usehooks-ts";
 import { useSnapshot } from "valtio";
 import { Button } from "../ui/button";
 
@@ -92,7 +97,11 @@ interface AgentState {
 export function Chat({ className, ...props }: ChatProps) {
   const snap = useSnapshot(appStore);
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
+  const isWaitingForAgentRef = useRef(false);
+  isWaitingForAgentRef.current = isWaitingForAgent;
   const [isWaitingForInput, setIsWaitingForInput] = useState(true);
+  const isWaitingForInputRef = useRef(true);
+  isWaitingForInputRef.current = isWaitingForInput;
   const [userInput, setUserInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const currentResponseIdRef = useRef<string | null>(null);
@@ -102,6 +111,9 @@ export function Chat({ className, ...props }: ChatProps) {
   const posthog = usePostHog();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // Define shortcut ID constant
+  const TOGGLE_AGENT_SHORTCUT = "toggle-agent";
 
   const agentStateRef = useRef<AgentState>({
     steps: [],
@@ -181,6 +193,23 @@ export function Chat({ className, ...props }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [uiState.steps, scrollToBottom]);
+
+  // Add global shortcut for toggling agent state
+  const toggleAgent = useCallback(() => {
+    alert("toggleAgent");
+    if (isWaitingForAgentRef.current) {
+      // Stop the agent
+      setIsWaitingForAgent(false);
+      setIsWaitingForInput(true);
+    } else {
+      // nothing for now
+    }
+  }, []);
+
+  const { shortcut } = useGlobalShortcut(TOGGLE_AGENT_SHORTCUT, toggleAgent, [
+    "AltLeft",
+    "KeyM",
+  ]);
 
   // Add a new function to process a single step
   const processStep = useCallback(
@@ -454,7 +483,9 @@ export function Chat({ className, ...props }: ChatProps) {
               "max-h-56 w-full resize-none overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-sm text-wrap text-neutral-300 outline-none",
             )}
             placeholder={
-              isWaitingForInput ? "What's on your mind?" : "Thinking..."
+              isWaitingForAgent
+                ? `AI is working... Press ${shortcut.join("+")} to stop`
+                : "What's on your mind?"
             }
             disabled={!isWaitingForInput}
             value={userInput}
@@ -472,29 +503,35 @@ export function Chat({ className, ...props }: ChatProps) {
               }
             }}
           />
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute right-2 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
-            onClick={() => {
-              setIsAgentFinished(true);
-              setIsWaitingForAgent(false);
-              setIsWaitingForInput(true);
-              setUserInput("");
-              setUiState({
-                steps: [],
-              });
-              agentStateRef.current = {
-                steps: [],
-              };
+          {isWaitingForAgent ? (
+            <div className="absolute right-2 bottom-2 flex size-9 animate-spin items-center justify-center rounded-full text-neutral-300">
+              <LoaderCircle className="h-4 w-4" />
+            </div>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-2 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
+              onClick={() => {
+                setIsAgentFinished(true);
+                setIsWaitingForAgent(false);
+                setIsWaitingForInput(true);
+                setUserInput("");
+                setUiState({
+                  steps: [],
+                });
+                agentStateRef.current = {
+                  steps: [],
+                };
 
-              currentResponseIdRef.current = null;
-            }}
-          >
-            <SquarePenIcon className="h-4 w-4" />
-          </Button>
+                currentResponseIdRef.current = null;
+              }}
+            >
+              <SquarePenIcon className="h-4 w-4" />
+            </Button>
+          )}
           {/* Debug button */}
-          <Button
+          {/* <Button
             size="icon"
             variant="ghost"
             className="absolute right-8 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
@@ -508,7 +545,7 @@ export function Chat({ className, ...props }: ChatProps) {
             }}
           >
             <SparklesIcon className="h-4 w-4" />
-          </Button>
+          </Button> */}
         </div>
       </div>
     </div>

@@ -116,9 +116,18 @@ pub fn keypress<R: Runtime>(handle: AppHandle<R>, keys: Vec<String>) -> Result<(
     for key_str in keys.clone() {
         let key = parse_key(&key_str)?;
         enigo
-            .key(key, Click)
+            .key(key, Press)
+            .map_err(|e| format!("Failed to keypress: {}", e))?;
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    for key_str in keys.clone() {
+        let key = parse_key(&key_str)?;
+        enigo
+            .key(key, Release)
             .map_err(|e| format!("Failed to keypress: {}", e))?;
     }
+
 
     handle
         .emit("agent_keypress", json!({ "keys": keys }))

@@ -17,6 +17,7 @@ export const USER_IGNORE_NEXT_SHORTCUT = "user-ignore-next";
 export const useGlobalShortcut = (
   shortcutId: string,
   onKeyDown: () => void,
+  defaultShortcut: string[],
 ) => {
   const rebindShortcut = (keys: string[]) => {
     return bindGlobalShortcut(keys, (event: ShortcutEvent) => {
@@ -39,6 +40,7 @@ export const useGlobalShortcut = (
     rebindShortcut,
     onShortcutChangeError,
     unbindShortcut,
+    defaultShortcut,
   );
 };
 
@@ -47,26 +49,24 @@ const useShortcut = (
   onShortcutChange: (shortcut: string[]) => Promise<void>,
   onShortcutChangeError: (err: ShortcutError) => void,
   onCleanup: (shortcut: string[]) => Promise<void>,
+  defaultShortcut: string[],
 ) => {
-  const storageKey = `shortcut_${shortcutId}`;
-  const [shortcut, setShortcut] = useLocalStorage<string[]>(
-    storageKey,
-    [],
-  );
+//   const storageKey = `shortcut_${shortcutId}`;
+  const [shortcut, setShortcut] = useState<string[]>(defaultShortcut);
   const [disabled, setDisabled] = useState(false);
   const [previousShortcut, setPreviousShortcut] = useState<string[]>([]);
 
   useEffect(() => {
     if (shortcut.length === 0) return;
     if (disabled) return;
-    
+
     // Check if the shortcut has actually changed
-    const shortcutChanged = 
-      previousShortcut.length !== shortcut.length || 
+    const shortcutChanged =
+      previousShortcut.length !== shortcut.length ||
       shortcut.some((key, index) => previousShortcut[index] !== key);
-    
+
     if (!shortcutChanged) return;
-    
+
     // Update the previous shortcut
     setPreviousShortcut(shortcut);
 
@@ -84,7 +84,14 @@ const useShortcut = (
         onCleanup(shortcut).catch(() => {});
       }
     };
-  }, [shortcut, disabled, onShortcutChange, onShortcutChangeError, onCleanup, previousShortcut]);
+  }, [
+    shortcut,
+    disabled,
+    onShortcutChange,
+    onShortcutChangeError,
+    onCleanup,
+    previousShortcut,
+  ]);
 
   useEffect(() => {
     const unlistenChangeEvent = listen(
@@ -179,6 +186,7 @@ async function bindGlobalShortcut(keys: string[], handler: ShortcutHandler) {
     if (typeof err === "string") {
       let errType = ShortcutErrorType.UNKNOWN;
       if (err.includes("valid")) errType = ShortcutErrorType.INVALID;
+      console.error(err);
       throw new ShortcutError(errType, keys, { msg: err });
     } else throw err;
   }
