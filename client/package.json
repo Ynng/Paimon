@@ -19,6 +19,7 @@
     "clsx": "^2.1.1",
     "core": "link:@tauri-apps/api/core",
     "lucide-react": "^0.487.0",
+    "openai": "^4.91.1",
     "posthog-js": "^1.234.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
