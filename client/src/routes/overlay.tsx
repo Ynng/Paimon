@@ -1,8 +1,32 @@
 import { cn } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSessionStorage } from "usehooks-ts";
+
+// Custom hook for animation frame updates
+const useAnimationFrame = (callback: (deltaTime: number) => void) => {
+  const requestRef = useRef<number>();
+  const previousTimeRef = useRef<number>();
+  
+  const animate = useCallback((time: number) => {
+    if (previousTimeRef.current !== undefined) {
+      const deltaTime = time - previousTimeRef.current;
+      callback(deltaTime);
+    }
+    previousTimeRef.current = time;
+    requestRef.current = requestAnimationFrame(animate);
+  }, [callback]);
+  
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [animate]);
+};
 
 export const Route = createFileRoute("/overlay")({
   component: Overlay,
@@ -36,7 +60,7 @@ function CircleEffect({
   x,
   y,
   color,
-  size = 2000,
+  size = 100,
 }: {
   x: number;
   y: number;
@@ -77,6 +101,19 @@ function Overlay() {
   const indicatorLifetime = 2000; // 2 seconds
   const circleLifetime = 2000; // 2 seconds
 
+  // Clean up old indicators and effects using animation frames
+  useAnimationFrame(() => {
+    const now = Date.now();
+    setIndicators((prev) =>
+      prev.filter(
+        (indicator) => now - indicator.timestamp < indicatorLifetime,
+      ),
+    );
+    setCircleEffects((prev) =>
+      prev.filter((effect) => now - effect.timestamp < circleLifetime),
+    );
+  });
+
   useEffect(() => {
     listen<{ isWaitingForAgent: boolean }>(
       "agent_waiting_for_agent",
@@ -87,27 +124,14 @@ function Overlay() {
   }, []);
 
   useEffect(() => {
-    // Clean up old indicators
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      setIndicators((prev) =>
-        prev.filter(
-          (indicator) => now - indicator.timestamp < indicatorLifetime,
-        ),
-      );
-      setCircleEffects((prev) =>
-        prev.filter((effect) => now - effect.timestamp < circleLifetime),
-      );
-    }, 8);
-
     // Set up event listeners
-    const unlisteners: (() => void)[] = [];
+    const unlisteners: Promise<UnlistenFn>[] = [];
 
-    const setupListener = async (
+    const setupListener = (
       eventName: string,
       messageFormatter: (payload: ActionEvent) => string,
     ) => {
-      const unlisten = await listen(eventName, (event) => {
+      const unlisten = listen(eventName, (event) => {
         const payload = event.payload as ActionEvent;
         const newIndicator: VisualIndicator = {
           id: Date.now() + Math.random(),
@@ -180,13 +204,14 @@ function Overlay() {
     });
 
     return () => {
-      clearInterval(cleanupInterval);
-      unlisteners.forEach((unlisten) => unlisten());
+      Promise.all(unlisteners).then((unlisteners) => {
+        unlisteners.forEach((unlisten) => unlisten());
+      });
     };
   }, []);
 
   return (
-    <div className="pointer-events-none relative h-full w-full">
+    <div className="pointer-events-none relative h-full w-full overflow-hidden">
       <div
         className={cn(
           "apple-intelligence-bg absolute inset-0",

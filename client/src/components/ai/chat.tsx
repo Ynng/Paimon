@@ -77,7 +77,7 @@ const ToolToColor: Record<Tool, string> = {
 
 export interface BrowserStep {
   text: string;
-  reasoning: string;
+  type: "user_msg" | "agent_msg" | "system_msg";
   tool: Tool;
   stepNumber?: number;
   messageId?: string;
@@ -122,7 +122,7 @@ export function Chat({ className, ...props }: ChatProps) {
       // Find the last element with reasoning = "Processing message"
       const processingMessageStep = [...uiState.steps]
         .reverse()
-        .find((step) => step.reasoning === "Processing message");
+        .find((step) => step.type === "agent_msg");
 
       currentResponseIdRef.current = processingMessageStep?.messageId || null;
     }
@@ -185,147 +185,138 @@ export function Chat({ className, ...props }: ChatProps) {
       if (isAgentFinishedRef.current) {
         return;
       }
-      const preprocessResponse = (data: OpenAI.Responses.Response) => {
-        if (data.output.length === 1 && data.output[0]?.type === "reasoning") {
-          console.log("Detected reasoning-only response, adding message item");
-          data.output.push({
-            id: `msg_fallback_${data.id || "default"}`,
-            type: "message",
-            role: "assistant",
-            content: [
-              {
-                type: "output_text",
-                text: "I'll help you with that task.",
-                annotations: [],
-              },
-            ],
-            status: "completed",
-          });
-        }
-        return data;
-      };
 
-      currentResponseIdRef.current = response.id;
-      response = preprocessResponse(response);
-
-      console.log("processing steps: ", response);
-      // stepData are the new steps
-      // there could be multiple, if the AI asked for an immediate screenshot or thought or something
-
-      // TODO: process all output items, not just the first one of each type
-      const messageItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        response.output.find((item) => item.type === "message");
-      const computerItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        response.output.find((item) => item.type === "computer_call");
-      const functionItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        response.output.find((item) => item.type === "function_call");
-
-      if (messageItem && messageItem.content[0].type === "output_text") {
-        const newStep: BrowserStep = {
-          text: messageItem.content[0].text || "",
-          reasoning: "Processing message",
-          tool: "MESSAGE",
-          stepNumber: stepNumber++,
-          messageId: messageItem.id,
-        };
-
-        // Only add the step if we haven't seen this messageId before
-        const isDuplicate = agentStateRef.current.steps.some(
-          (step) =>
-            step.messageId === messageItem.id && messageItem.id !== undefined,
-        );
-
-        if (!isDuplicate) {
-          agentStateRef.current = {
-            steps: [...agentStateRef.current.steps, newStep],
-          };
-
-          console.log(
-            "agentStateRef.current.steps: ",
-            agentStateRef.current.steps,
-          );
-
-          setUiState({
-            steps: agentStateRef.current.steps,
-          });
-        }
+      // Special case for reasoning-only response
+      if (
+        response.output.length === 1 &&
+        response.output[0]?.type === "reasoning"
+      ) {
+        console.log("Detected reasoning-only response, adding message item");
+        response.output.push({
+          id: `msg_fallback_${response.id || "default"}`,
+          type: "message",
+          role: "assistant",
+          content: [
+            {
+              type: "output_text",
+              text: "I'll help you with that task.",
+              annotations: [],
+            },
+          ],
+          status: "completed",
+        });
       }
 
-      if (!computerItem && !functionItem) {
-        setIsWaitingForInput(true);
+      currentResponseIdRef.current = response.id;
+      console.log("processing steps: ", response);
+      const addBrowserStep = (step: BrowserStep) => {
+        const isDuplicate = agentStateRef.current.steps.some(
+          (s) => s.messageId === step.messageId && step.messageId !== undefined,
+        );
 
-        // Focus the input when it becomes visible
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      } else if (computerItem) {
-        let step: BrowserStep = {
-          text: "Doing " + computerItem.action.type || "",
-          reasoning: "Taking action",
-          tool: computerItem.action.type.toUpperCase() as
-            | "TYPE"
-            | "CLICK"
-            | "DOUBLE_CLICK"
-            | "DRAG"
-            | "KEYPRESS"
-            | "MOVE"
-            | "SCREENSHOT"
-            | "SCROLL"
-            | "WAIT",
-          stepNumber: stepNumber++,
-        };
-
-        // prettier-ignore
-        if(computerItem.action.type==="click") {
-          step.text = "Clicking at " + computerItem.action.x + ", " + computerItem.action.y;
-        } else if(computerItem.action.type==="double_click") {
-          step.text = "Double clicking at " + computerItem.action.x + ", " + computerItem.action.y;
-        } else if(computerItem.action.type==="drag") {
-          step.text = "Dragging from " + computerItem.action.path[0] + " to " + computerItem.action.path[computerItem.action.path.length - 1];
-        } else if(computerItem.action.type==="type") {
-          step.text = "Typing " + computerItem.action.text;
-        } else if(computerItem.action.type==="keypress") {
-          step.text = "Pressing " + computerItem.action.keys.join(", ");
-        } else if(computerItem.action.type==="move") {
-          step.text = "Moving to " + computerItem.action.x + ", " + computerItem.action.y;
-        } else if(computerItem.action.type==="scroll") {
-          step.text = "Scrolling " + computerItem.action.scroll_x + " " + computerItem.action.scroll_y;
-        } else if(computerItem.action.type==="screenshot") {
-          step.text = "Taking screenshot";
-        } else if(computerItem.action.type==="wait") {
-          step.text = "Waiting for a moment";
+        if (isDuplicate) {
+          return;
         }
 
         agentStateRef.current = {
-          ...agentStateRef.current,
           steps: [...agentStateRef.current.steps, step],
         };
 
         setUiState({
           steps: agentStateRef.current.steps,
         });
+      };
 
-        // Handle computer call
-        const responseOutputItems: OpenAI.Responses.ResponseOutputItem[] = [];
-        if (computerItem) {
-          responseOutputItems.push(computerItem);
+      let executedAnything = false;
+      let callOutputs = [];
+
+      // Process all output items one by one
+      for (const item of response.output) {
+        if (item.type === "message") {
+          if (item.content[0]?.type === "output_text") {
+            addBrowserStep({
+              text: item.content[0].text,
+              type: "agent_msg",
+              tool: "MESSAGE",
+              stepNumber: stepNumber++,
+              messageId: item.id,
+            });
+          } else if (item.content[0]?.type === "refusal") {
+            addBrowserStep({
+              text: item.content[0].refusal,
+              type: "agent_msg",
+              tool: "MESSAGE",
+              stepNumber: stepNumber++,
+              messageId: item.id,
+            });
+            setIsWaitingForInput(true);
+            setIsAgentFinished(true);
+          }
+        } else if (item.type === "computer_call") {
+          executedAnything = true;
+
+          // basic step
+          let step: BrowserStep = {
+            text: "Doing " + item.action.type || "",
+            type: "agent_msg",
+            tool: item.action.type.toUpperCase() as
+              | "TYPE"
+              | "CLICK"
+              | "DOUBLE_CLICK"
+              | "DRAG"
+              | "KEYPRESS"
+              | "MOVE"
+              | "SCREENSHOT"
+              | "SCROLL"
+              | "WAIT",
+            stepNumber: stepNumber++,
+          };
+
+          // prettier-ignore
+          if(item.action.type==="click") {
+            step.text = "Clicking at " + item.action.x + ", " + item.action.y;
+          } else if(item.action.type==="double_click") {
+            step.text = "Double clicking at " + item.action.x + ", " + item.action.y;
+          } else if(item.action.type==="drag") {
+            step.text = "Dragging from " + item.action.path[0] + " to " + item.action.path[item.action.path.length - 1];
+          } else if(item.action.type==="type") {
+            step.text = "Typing " + item.action.text;
+          } else if(item.action.type==="keypress") {
+            step.text = "Pressing " + item.action.keys.join(", ");
+          } else if(item.action.type==="move") {
+            step.text = "Moving to " + item.action.x + ", " + item.action.y;
+          } else if(item.action.type==="scroll") {
+            step.text = "Scrolling " + item.action.scroll_x + " " + item.action.scroll_y;
+          } else if(item.action.type==="screenshot") {
+            step.text = "Taking screenshot";
+          } else if(item.action.type==="wait") {
+            step.text = "Waiting for a moment";
+          }
+
+          addBrowserStep(step);
+          setIsWaitingForAgent(true);
+          const computerCallData = await takeAction([item]);
+          setIsWaitingForAgent(false);
+          callOutputs.push(...computerCallData);
+        } else if (item.type === "function_call") {
+          executedAnything = true;
+          // TODO: we don't have any functions yet
         }
-        if (functionItem) {
-          responseOutputItems.push(functionItem);
-        }
-        setIsWaitingForAgent(true);
-        const computerCallData = await takeAction(responseOutputItems);
-        const nextStepData = await getResponse(
-          computerCallData,
-          currentResponseIdRef.current,
-        );
-        setIsWaitingForAgent(false);
-        return processStep(nextStepData, stepNumber);
-      } else {
-        console.log("No message or computer call output");
-        console.log("messageItem", messageItem);
-        console.log("computerItem", computerItem);
       }
+
+      // If no action items, wait for user input
+      if (!executedAnything) {
+        setIsWaitingForInput(true);
+        return;
+      }
+
+      setIsWaitingForAgent(true);
+      const nextStepData = await getResponse(
+        callOutputs,
+        currentResponseIdRef.current,
+      );
+      setIsWaitingForAgent(false);
+      return processStep(nextStepData, stepNumber);
     },
     [],
   );
@@ -335,7 +326,7 @@ export function Chat({ className, ...props }: ChatProps) {
 
     const userStep: BrowserStep = {
       text: input,
-      reasoning: "User input",
+      type: "user_msg",
       tool: "MESSAGE",
       stepNumber: agentStateRef.current.steps.length + 1,
     };
@@ -367,7 +358,7 @@ export function Chat({ className, ...props }: ChatProps) {
       console.error("Error handling user input:", error);
       const errorStep: BrowserStep = {
         text: "Sorry, there was an error processing your request. Please try again.",
-        reasoning: "Error handling user input",
+        type: "system_msg",
         tool: "MESSAGE",
         stepNumber: agentStateRef.current.steps.length + 1,
       };
@@ -395,10 +386,11 @@ export function Chat({ className, ...props }: ChatProps) {
         {uiState.steps.map((step, index) => {
           // Determine if this is a system message (like stock price info)
           const isSystemMessage =
-            step.tool === "MESSAGE" && step.reasoning === "Processing message";
+            step.tool === "MESSAGE" &&
+            (step.type === "system_msg" || step.type === "agent_msg");
           // Determine if this is a user input message
           const isUserInput =
-            step.tool === "MESSAGE" && step.reasoning === "User input";
+            step.tool === "MESSAGE" && step.type === "user_msg";
           return (
             <div
               key={index}
@@ -424,12 +416,20 @@ export function Chat({ className, ...props }: ChatProps) {
                   {isSystemMessage ? "System Message" : ToolToName[step.tool]}
                 </span>
               </div>
-              <div className="font-medium text-neutral-200">{step.text}</div>
+              <div
+                className={cn(
+                  "font-medium",
+                  step.tool === "MESSAGE" && "text-neutral-200",
+                  step.tool !== "MESSAGE" && "font-mono text-neutral-400",
+                )}
+              >
+                {step.text}
+              </div>
               {/* Show reasoning for all steps except the last one */}
-              <div className="rounded-md bg-neutral-800/30 p-2 text-sm text-neutral-400">
+              {/* <div className="rounded-md bg-neutral-800/30 p-2 text-sm text-neutral-400">
                 <span className="font-semibold">Reasoning: </span>
                 {step.reasoning}
-              </div>
+              </div> */}
             </div>
           );
         })}
@@ -483,24 +483,25 @@ export function Chat({ className, ...props }: ChatProps) {
               agentStateRef.current = {
                 steps: [],
               };
-              
+
               currentResponseIdRef.current = null;
             }}
           >
             <SquarePenIcon className="h-4 w-4" />
           </Button>
-          {/* <Button
+          {/* Debug button */}
+          <Button
             size="icon"
             variant="ghost"
-            className="absolute right-8 bottom-2 text-neutral-400 hover:text-neutral-300 cursor-pointer"
+            className="absolute right-8 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
             onClick={() => {
-              emit("agent_type_text", {
-                text: "Hello, world!",
+              emit("agent_keypress", {
+                keys: ["Enter"],
               });
             }}
           >
             <SparklesIcon className="h-4 w-4" />
-          </Button> */}
+          </Button>
         </div>
       </div>
     </div>

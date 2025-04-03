@@ -94,24 +94,25 @@ export class Agent {
       | OpenAI.Responses.ResponseInputItem.FunctionCallOutput
     )[]
   > {
-    const actions: Promise<
+    const results: (
       | OpenAI.Responses.ResponseInputItem.Message
       | OpenAI.Responses.ResponseInputItem.ComputerCallOutput
       | OpenAI.Responses.ResponseInputItem.FunctionCallOutput
-    >[] = [];
+    )[] = [];
+
+    // Process actions sequentially instead of in parallel
     for (const item of output) {
       if (item.type === "message") {
-        // Do nothing
-      }
-      if (item.type === "computer_call") {
-        actions.push(this.takeComputerAction(item));
-      }
-      if (item.type === "function_call") {
-        actions.push(this.takeFunctionAction(item));
+        // Do nothing for message items
+      } else if (item.type === "computer_call") {
+        const result = await this.takeComputerAction(item);
+        results.push(result);
+      } else if (item.type === "function_call") {
+        const result = await this.takeFunctionAction(item);
+        results.push(result);
       }
     }
 
-    const results = await Promise.all(actions);
     return results;
   }
 
@@ -139,9 +140,7 @@ export class Agent {
     await method.apply(this.computer, Object.values(actionArgs));
 
     const screenshot = await this.computer.screenshot();
-    console.log("screenshot", screenshot);
-
-    // Handle safety checks
+    
     const pendingChecks = computerItem.pending_safety_checks || [];
     for (const check of pendingChecks) {
       const message = check.message;
