@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { currentMonitor } from "@tauri-apps/api/window";
-import { platform } from "@tauri-apps/plugin-os";
+import { platform, type } from "@tauri-apps/plugin-os";
 import { getScreenshot, setHideFromScreenshot } from "../screenshot";
 
 export type Environment = "mac" | "windows" | "ubuntu";
@@ -12,8 +12,12 @@ export class TauriComputer {
   async init(): Promise<this> {
     const monitor = await currentMonitor();
     if (!monitor) throw new Error("No monitor found");
-    this.dimensions = [monitor.size.width, monitor.size.height];
-    const os = platform();
+    this.dimensions = [
+      monitor.size.width / monitor.scaleFactor,
+      monitor.size.height / monitor.scaleFactor,
+    ];
+    console.log("computer dimensions", this.dimensions);
+    const os = await platform();
     if (os === "macos") {
       this.environment = "mac";
     } else if (os === "windows") {
