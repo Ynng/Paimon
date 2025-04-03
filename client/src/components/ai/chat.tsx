@@ -2,12 +2,15 @@ import { getResponse, takeAction } from "@/lib/cua";
 import * as CUA from "@/lib/cua";
 import { cn } from "@/lib/utils";
 import { appStore } from "@/stores/app";
+import { emit } from "@tauri-apps/api/event";
+import { SparkleIcon, SparklesIcon, SquarePenIcon } from "lucide-react";
 import OpenAI from "openai";
 import { usePostHog } from "posthog-js/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocalStorage, useSessionStorage } from "usehooks-ts";
 import { useSnapshot } from "valtio";
 import { Button } from "../ui/button";
-import { SquarePenIcon } from "lucide-react";
+
 export type ChatProps = React.HTMLAttributes<HTMLDivElement> & {};
 
 export type Tool =
@@ -101,11 +104,29 @@ export function Chat({ className, ...props }: ChatProps) {
   const agentStateRef = useRef<AgentState>({
     steps: [],
   });
-  const [uiState, setUiState] = useState<{
+  const [uiState, setUiState] = useLocalStorage<{
     steps: BrowserStep[];
-  }>({
+  }>("uiState", {
     steps: [],
   });
+
+  useEffect(() => {
+    emit("agent_waiting_for_agent", {
+      isWaitingForAgent,
+    });
+  }, [isWaitingForAgent]);
+
+  useEffect(() => {
+    agentStateRef.current.steps = uiState.steps;
+    if (uiState.steps.length > 0) {
+      // Find the last element with reasoning = "Processing message"
+      const processingMessageStep = [...uiState.steps]
+        .reverse()
+        .find((step) => step.reasoning === "Processing message");
+
+      currentResponseIdRef.current = processingMessageStep?.messageId || null;
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     if (chatContainerRef.current) {
@@ -160,7 +181,7 @@ export function Chat({ className, ...props }: ChatProps) {
 
   // Add a new function to process a single step
   const processStep = useCallback(
-    async (stepData: OpenAI.Responses.Response, stepNumber = 1) => {
+    async (response: OpenAI.Responses.Response, stepNumber = 1) => {
       if (isAgentFinishedRef.current) {
         return;
       }
@@ -184,21 +205,20 @@ export function Chat({ className, ...props }: ChatProps) {
         return data;
       };
 
-      stepData = preprocessResponse(stepData);
+      currentResponseIdRef.current = response.id;
+      response = preprocessResponse(response);
 
-      currentResponseIdRef.current = stepData.id;
-
-      console.log("processing steps: ", stepData);
+      console.log("processing steps: ", response);
       // stepData are the new steps
       // there could be multiple, if the AI asked for an immediate screenshot or thought or something
 
       // Find the first message, computer call, and function call items
       const messageItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        stepData.output.find((item) => item.type === "message");
+        response.output.find((item) => item.type === "message");
       const computerItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        stepData.output.find((item) => item.type === "computer_call");
+        response.output.find((item) => item.type === "computer_call");
       const functionItem: OpenAI.Responses.ResponseOutputItem | undefined =
-        stepData.output.find((item) => item.type === "function_call");
+        response.output.find((item) => item.type === "function_call");
 
       if (messageItem && messageItem.content[0].type === "output_text") {
         const newStep: BrowserStep = {
@@ -239,26 +259,46 @@ export function Chat({ className, ...props }: ChatProps) {
           inputRef.current.focus();
         }
       } else if (computerItem) {
+        let step: BrowserStep = {
+          text: "Doing " + computerItem.action.type || "",
+          reasoning: "Taking action",
+          tool: computerItem.action.type.toUpperCase() as
+            | "TYPE"
+            | "CLICK"
+            | "DOUBLE_CLICK"
+            | "DRAG"
+            | "KEYPRESS"
+            | "MOVE"
+            | "SCREENSHOT"
+            | "SCROLL"
+            | "WAIT",
+          stepNumber: stepNumber++,
+        };
+
+        // prettier-ignore
+        if(computerItem.action.type==="click") {
+          step.text = "Clicking at " + computerItem.action.x + ", " + computerItem.action.y;
+        } else if(computerItem.action.type==="double_click") {
+          step.text = "Double clicking at " + computerItem.action.x + ", " + computerItem.action.y;
+        } else if(computerItem.action.type==="drag") {
+          step.text = "Dragging from " + computerItem.action.path[0] + " to " + computerItem.action.path[computerItem.action.path.length - 1];
+        } else if(computerItem.action.type==="type") {
+          step.text = "Typing " + computerItem.action.text;
+        } else if(computerItem.action.type==="keypress") {
+          step.text = "Pressing " + computerItem.action.keys.join(", ");
+        } else if(computerItem.action.type==="move") {
+          step.text = "Moving to " + computerItem.action.x + ", " + computerItem.action.y;
+        } else if(computerItem.action.type==="scroll") {
+          step.text = "Scrolling " + computerItem.action.scroll_x + " " + computerItem.action.scroll_y;
+        } else if(computerItem.action.type==="screenshot") {
+          step.text = "Taking screenshot";
+        } else if(computerItem.action.type==="wait") {
+          step.text = "Waiting for a moment";
+        }
+
         agentStateRef.current = {
           ...agentStateRef.current,
-          steps: [
-            ...agentStateRef.current.steps,
-            {
-              text: "Doing " + computerItem.action.type || "",
-              reasoning: "Taking action",
-              tool: computerItem.action.type.toUpperCase() as
-                | "TYPE"
-                | "CLICK"
-                | "DOUBLE_CLICK"
-                | "DRAG"
-                | "KEYPRESS"
-                | "MOVE"
-                | "SCREENSHOT"
-                | "SCROLL"
-                | "WAIT",
-              stepNumber: stepNumber++,
-            },
-          ],
+          steps: [...agentStateRef.current.steps, step],
         };
 
         setUiState({
@@ -273,8 +313,13 @@ export function Chat({ className, ...props }: ChatProps) {
         if (functionItem) {
           responseOutputItems.push(functionItem);
         }
+        setIsWaitingForAgent(true);
         const computerCallData = await takeAction(responseOutputItems);
-        const nextStepData = await getResponse(computerCallData, stepData.id);
+        const nextStepData = await getResponse(
+          computerCallData,
+          currentResponseIdRef.current,
+        );
+        setIsWaitingForAgent(false);
         return processStep(nextStepData, stepNumber);
       } else {
         console.log("No message or computer call output");
@@ -311,10 +356,12 @@ export function Chat({ className, ...props }: ChatProps) {
     setUserInput("");
 
     try {
+      setIsWaitingForAgent(true);
       let nextStepData = await getResponse(
         [{ role: "user", content: input }],
         currentResponseIdRef.current,
       );
+      setIsWaitingForAgent(false);
       return processStep(nextStepData, agentStateRef.current.steps.length + 1);
     } catch (error) {
       console.error("Error handling user input:", error);
@@ -327,12 +374,25 @@ export function Chat({ className, ...props }: ChatProps) {
 
       updateSteps(errorStep);
       setIsWaitingForInput(true);
+      setIsWaitingForAgent(false);
       return null;
     }
   }, []);
 
   return (
-    <div className={cn("flex h-full flex-col rounded-[20px] overflow-hidden", className)} {...props}>
+    <div
+      className={cn(
+        "flex h-full flex-col overflow-hidden rounded-[20px]",
+        className,
+      )}
+      {...props}
+    >
+      <div
+        className={cn(
+          "apple-intelligence-bg pointer-events-none absolute inset-0 z-50 rounded-[20px]",
+          !isWaitingForAgent && "opacity-0",
+        )}
+      />
       <div
         ref={chatContainerRef}
         className="macos:pt-6 flex min-h-0 w-full grow flex-col items-stretch justify-start gap-y-4 overflow-x-hidden overflow-y-auto p-2 pt-2"
@@ -389,7 +449,6 @@ export function Chat({ className, ...props }: ChatProps) {
         <div
           className={cn(
             "relative w-full rounded-2xl border border-neutral-500 dark:bg-neutral-700",
-            isWaitingForInput && "animate-pulse",
           )}
         >
           <textarea
@@ -418,7 +477,7 @@ export function Chat({ className, ...props }: ChatProps) {
           <Button
             size="icon"
             variant="ghost"
-            className="absolute right-2 bottom-2 text-neutral-400 hover:text-neutral-300 cursor-pointer"
+            className="absolute right-2 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
             onClick={() => {
               setIsAgentFinished(true);
               setUserInput("");
@@ -428,10 +487,23 @@ export function Chat({ className, ...props }: ChatProps) {
               agentStateRef.current = {
                 steps: [],
               };
+              currentResponseIdRef.current = null;
             }}
           >
             <SquarePenIcon className="h-4 w-4" />
           </Button>
+          {/* <Button
+            size="icon"
+            variant="ghost"
+            className="absolute right-8 bottom-2 text-neutral-400 hover:text-neutral-300 cursor-pointer"
+            onClick={() => {
+              emit("agent_type_text", {
+                text: "Hello, world!",
+              });
+            }}
+          >
+            <SparklesIcon className="h-4 w-4" />
+          </Button> */}
         </div>
       </div>
     </div>

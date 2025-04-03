@@ -28,11 +28,11 @@ pub async fn get_screenshot<R: Runtime>(handle: AppHandle<R>) -> Result<Screensh
     }
 
     // Create a jpg path with the same name but different extension
-    let jpg_path = Path::new(&screenshot_path).with_extension("jpg");
+    let jpg_path = Path::new(&screenshot_path).with_extension("png");
 
     // Save as jpg with slight compression (quality 85)
     image
-        .save_with_format(&jpg_path, ImageFormat::Jpeg)
+        .save_with_format(&jpg_path, ImageFormat::Png)
         .map_err(|e| e.to_string())?;
 
     // Convert PathBuf to String
@@ -41,12 +41,12 @@ pub async fn get_screenshot<R: Runtime>(handle: AppHandle<R>) -> Result<Screensh
     // Create base64 representation
     let mut buffer = Cursor::new(Vec::new());
     image
-        .write_to(&mut buffer, ImageFormat::Jpeg)
+        .write_to(&mut buffer, ImageFormat::Png)
         .map_err(|e| e.to_string())?;
     let base64_image = general_purpose::STANDARD.encode(buffer.into_inner());
 
     Ok(ScreenshotResult {
         path: jpg_path_str,
-        base64: format!("data:image/jpeg;base64,{}", base64_image),
+        base64: format!("data:image/png;base64,{}", base64_image),
     })
 }

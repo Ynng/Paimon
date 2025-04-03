@@ -64,7 +64,7 @@ export class TauriComputer {
     await invoke("type_text", { text });
   }
 
-  async wait(ms: number = 250): Promise<void> {
+  async wait(ms: number = 0): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
 

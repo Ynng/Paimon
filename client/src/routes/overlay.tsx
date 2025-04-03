@@ -1,6 +1,8 @@
+import { cn } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+import { useSessionStorage } from "usehooks-ts";
 
 export const Route = createFileRoute("/overlay")({
   component: Overlay,
@@ -26,23 +28,85 @@ type VisualIndicator = {
   timestamp: number;
 };
 
+// Define action types that should show the circle effect
+const LOCATION_BASED_ACTIONS = ["agent_click", "agent_double_click"];
+
+// Circle effect component for clicks
+function CircleEffect({
+  x,
+  y,
+  color,
+  size = 2000,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  size?: number;
+}) {
+  const halfSize = size / 2;
+  return (
+    <div
+      className="click-circle"
+      style={{
+        left: x,
+        top: y,
+        borderColor: color,
+        borderWidth: `10px`,
+        backgroundColor: "transparent",
+        width: `${size}px`,
+        height: `${size}px`,
+        marginLeft: `-${halfSize}px`,
+        marginTop: `-${halfSize}px`,
+      }}
+    />
+  );
+}
+
 function Overlay() {
+  const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const [indicators, setIndicators] = useState<VisualIndicator[]>([]);
+  const [circleEffects, setCircleEffects] = useState<
+    Array<{
+      id: number;
+      x: number;
+      y: number;
+      color: string;
+      timestamp: number;
+    }>
+  >([]);
   const indicatorLifetime = 2000; // 2 seconds
+  const circleLifetime = 2000; // 2 seconds
+
+  useEffect(() => {
+    listen<{ isWaitingForAgent: boolean }>(
+      "agent_waiting_for_agent",
+      (event) => {
+        setIsWaitingForAgent(event.payload.isWaitingForAgent);
+      },
+    );
+  }, []);
 
   useEffect(() => {
     // Clean up old indicators
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
-      setIndicators(prev => 
-        prev.filter(indicator => now - indicator.timestamp < indicatorLifetime)
+      setIndicators((prev) =>
+        prev.filter(
+          (indicator) => now - indicator.timestamp < indicatorLifetime,
+        ),
       );
-    }, 500);
+      setCircleEffects((prev) =>
+        prev.filter((effect) => now - effect.timestamp < circleLifetime),
+      );
+    }, 8);
 
     // Set up event listeners
     const unlisteners: (() => void)[] = [];
 
-    const setupListener = async (eventName: string, messageFormatter: (payload: ActionEvent) => string) => {
+    const setupListener = async (
+      eventName: string,
+      messageFormatter: (payload: ActionEvent) => string,
+    ) => {
       const unlisten = await listen(eventName, (event) => {
         const payload = event.payload as ActionEvent;
         const newIndicator: VisualIndicator = {
@@ -55,42 +119,60 @@ function Overlay() {
         if (payload.x !== undefined && payload.y !== undefined) {
           newIndicator.x = payload.x;
           newIndicator.y = payload.y;
+
+          // Add circle effect for click-like actions
+          if (LOCATION_BASED_ACTIONS.includes(eventName)) {
+            const circleColor =
+              eventName === "agent_double_click" ? "#ff5500" : "#3b82f6";
+            setCircleEffects((prev) => [
+              ...prev,
+              {
+                id: Date.now() + Math.random(),
+                x: payload.x!,
+                y: payload.y!,
+                color: circleColor,
+                timestamp: Date.now(),
+              },
+            ]);
+          }
         }
 
-        setIndicators(prev => [...prev, newIndicator]);
+        setIndicators((prev) => [...prev, newIndicator]);
       });
       unlisteners.push(unlisten);
     };
 
     // Setup all event listeners
-    setupListener("agent_click", (payload) => 
-      `Click: ${payload.x},${payload.y}`
+    setupListener(
+      "agent_click",
+      (payload) => `Click: ${payload.x},${payload.y}`,
     );
-    
-    setupListener("agent_double_click", (payload) => 
-      `Double Click: ${payload.x},${payload.y}`
+
+    setupListener(
+      "agent_double_click",
+      (payload) => `Double Click: ${payload.x},${payload.y}`,
     );
-    
-    setupListener("agent_move_mouse", (payload) => 
-      `Move: ${payload.x},${payload.y}`
+
+    setupListener(
+      "agent_move_mouse",
+      (payload) => `Move: ${payload.x},${payload.y}`,
     );
-    
-    setupListener("agent_scroll", (payload) => 
-      `Scroll: ${payload.scroll_x},${payload.scroll_y} at ${payload.x},${payload.y}`
+
+    setupListener(
+      "agent_scroll",
+      (payload) =>
+        `Scroll: ${payload.scroll_x},${payload.scroll_y} at ${payload.x},${payload.y}`,
     );
-    
-    setupListener("agent_keypress", (payload) => 
-      `Keys: ${payload.keys?.join(", ")}`
+
+    setupListener(
+      "agent_keypress",
+      (payload) => `Keys: ${payload.keys?.join(", ")}`,
     );
-    
-    setupListener("agent_type_text", (payload) => 
-      `Typing: "${payload.text}"`
-    );
-    
-    setupListener("agent_wait", (payload) => 
-      `Waiting: ${payload.ms}ms`
-    );
-    
+
+    setupListener("agent_type_text", (payload) => `Typing: "${payload.text}"`);
+
+    setupListener("agent_wait", (payload) => `Waiting: ${payload.ms}ms`);
+
     setupListener("agent_drag", (payload) => {
       const start = payload.path?.[0];
       const end = payload.path?.[payload.path.length - 1];
@@ -99,39 +181,58 @@ function Overlay() {
 
     return () => {
       clearInterval(cleanupInterval);
-      unlisteners.forEach(unlisten => unlisten());
+      unlisteners.forEach((unlisten) => unlisten());
     };
   }, []);
 
   return (
-    <div className="relative h-full w-full pointer-events-none">
-      <div className="apple-intelligence-bg absolute inset-0" />
-      
-      {/* Position-based indicators */}
-      {indicators.filter(i => i.x !== undefined && i.y !== undefined).map(indicator => (
-        <div 
-          key={indicator.id}
-          className="absolute bg-blue-500 text-white px-2 py-1 rounded-md text-sm z-50 transform -translate-x-1/2 -translate-y-1/2 animate-pulse"
-          style={{ 
-            left: indicator.x, 
-            top: indicator.y,
-            opacity: 1 - (Date.now() - indicator.timestamp) / indicatorLifetime
-          }}
-        >
-          {indicator.message}
-        </div>
+    <div className="pointer-events-none relative h-full w-full">
+      <div
+        className={cn(
+          "apple-intelligence-bg absolute inset-0",
+          !isWaitingForAgent && "opacity-0",
+        )}
+      />
+
+      {/* Circle effects for clicks */}
+      {circleEffects.map((effect) => (
+        <CircleEffect
+          key={effect.id}
+          x={effect.x}
+          y={effect.y}
+          color={effect.color}
+        />
       ))}
-      
+
+      {/* Position-based indicators */}
+      {indicators
+        .filter((i) => i.x !== undefined && i.y !== undefined)
+        .map((indicator) => (
+          <div
+            key={indicator.id}
+            className="absolute z-50 -translate-x-1/2 -translate-y-1/2 transform animate-pulse rounded-md bg-blue-500 px-2 py-1 text-sm text-white"
+            style={{
+              left: indicator.x,
+              top: indicator.y,
+              opacity:
+                1 - (Date.now() - indicator.timestamp) / indicatorLifetime,
+            }}
+          >
+            {indicator.message}
+          </div>
+        ))}
+
       {/* Toast notifications for non-positional events */}
-      <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+      <div className="fixed right-4 bottom-4 z-50 flex flex-col gap-2">
         {indicators
-          .filter(i => i.x === undefined)
-          .map(indicator => (
-            <div 
+          .filter((i) => i.x === undefined)
+          .map((indicator) => (
+            <div
               key={indicator.id}
-              className="bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg"
-              style={{ 
-                opacity: 1 - (Date.now() - indicator.timestamp) / indicatorLifetime
+              className="rounded-md bg-gray-800 px-4 py-2 text-white shadow-lg"
+              style={{
+                opacity:
+                  1 - (Date.now() - indicator.timestamp) / indicatorLifetime,
               }}
             >
               {indicator.message}
