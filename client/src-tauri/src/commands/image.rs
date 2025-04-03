@@ -3,7 +3,7 @@ use image::{imageops::FilterType, ImageFormat, ImageReader};
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use tauri::{command, AppHandle, Manager, Runtime};
+use tauri::{async_runtime, command, AppHandle, Manager, Runtime};
 use tauri_plugin_screenshots::{get_monitor_screenshot, get_screenshotable_monitors};
 
 #[derive(serde::Serialize)]
@@ -14,12 +14,13 @@ pub struct ScreenshotResult {
 
 #[command]
 pub async fn get_screenshot<R: Runtime>(handle: AppHandle<R>) -> Result<ScreenshotResult, String> {
+    log::info!("getting screenshot");
     let monitors = get_screenshotable_monitors().await?;
-    let screenshot_path = get_monitor_screenshot(handle, monitors[0].id).await?;
+    let screenshot_path = get_monitor_screenshot(handle.clone(), monitors[0].id).await?;
     let image = ImageReader::open(&screenshot_path).map_err(|e| e.to_string())?;
     let mut image = image.decode().map_err(|e| e.to_string())?;
     // image size limit for openai api
-    image = image.resize(2000, 768, FilterType::CatmullRom);
+    // image = image.resize(2000, 768, FilterType::CatmullRom);
 
     // If the image has an alpha channel, convert it to RGB
     if image.color().has_alpha() {

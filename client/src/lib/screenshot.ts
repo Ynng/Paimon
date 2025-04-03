@@ -5,3 +5,6 @@ export const getScreenshot = async () => {
     return result;
 };
 
+export const setHideFromScreenshot = async (hide: boolean) => {
+    await invoke("set_hide_from_screenshot", { hide });
+};

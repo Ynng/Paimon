@@ -1,6 +1,7 @@
 use cocoa::appkit::NSWindow;
 use tauri::{
-    async_runtime, ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager, PhysicalPosition, PhysicalSize, WebviewWindow
+    async_runtime, ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition,
+    Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
 };
 use tauri_nspanel::{
     cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior},
@@ -149,10 +150,11 @@ pub fn run() {
                 .unwrap();
             // get the next monitor if it exists
             // TODO: moving window across monitors is very inconsistent on macOS, should investigate later
-            let monitor = overlay_window
-                .current_monitor()
-                .expect("Failed to get current monitor")
-                .unwrap();
+            // let monitor = overlay_window
+            //     .current_monitor()
+            //     .expect("Failed to get current monitor")
+            //     .unwrap();
+            let monitor = primary_monitor;
             // let monitor = monitors
             //     .get((primary_monitor_index + 1) % monitors.len())
             //     .unwrap_or(&primary_monitor);
@@ -174,6 +176,12 @@ pub fn run() {
             println!("Chosen monitor position: {:?}", monitor_position);
             println!("Chosen monitor scale factor: {:?}", monitor_scale_factor);
 
+            overlay_window
+                .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: 0,
+                    y: 0,
+                }))
+                .unwrap_or_else(|err| println!("Failed to set position: {:?}", err));
             overlay_window
                 .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
                     x: monitor_position.x,
@@ -212,6 +220,12 @@ pub fn run() {
                     height: window_height,
                 }
             );
+            spotlight_window
+                .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: 0,
+                    y: 0,
+                }))
+                .unwrap_or_else(|err| println!("Failed to set main window position: {:?}", err));
             spotlight_window
                 .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
                     x: x_position,

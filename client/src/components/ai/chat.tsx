@@ -6,7 +6,8 @@ import OpenAI from "openai";
 import { usePostHog } from "posthog-js/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
-
+import { Button } from "../ui/button";
+import { SquarePenIcon } from "lucide-react";
 export type ChatProps = React.HTMLAttributes<HTMLDivElement> & {};
 
 export type Tool =
@@ -22,6 +23,30 @@ export type Tool =
   | "DRAG"
   | "SCREENSHOT"
   | "MOVE";
+
+const ToolToName: Record<Tool, string> = {
+  // End of Task
+  CLOSE: "End",
+
+  // Waiting for Task
+  WAIT: "Waiting",
+
+  // Communication tools
+  MESSAGE: "Message",
+
+  // Utility tools
+  SCREENSHOT: "Screenshot",
+
+  // Interaction tools
+  CLICK: "Click",
+  TYPE: "Type",
+  KEYPRESS: "Keypress",
+  SCROLL: "Scroll",
+  DOUBLE_CLICK: "Double Click",
+  DRAG: "Drag",
+  MOVE: "Move",
+  ACT: "Action",
+};
 
 const ToolToColor: Record<Tool, string> = {
   // End of Task
@@ -140,7 +165,7 @@ export function Chat({ className, ...props }: ChatProps) {
         return;
       }
       const preprocessResponse = (data: OpenAI.Responses.Response) => {
-        if (data.output[0]?.type === "reasoning") {
+        if (data.output.length === 1 && data.output[0]?.type === "reasoning") {
           console.log("Detected reasoning-only response, adding message item");
           data.output.push({
             id: `msg_fallback_${data.id || "default"}`,
@@ -168,19 +193,16 @@ export function Chat({ className, ...props }: ChatProps) {
       // there could be multiple, if the AI asked for an immediate screenshot or thought or something
 
       // Find the first message, computer call, and function call items
-      const messageItem = stepData.output.find(
-        (item) => item.type === "message",
-      );
-      const computerItem = stepData.output.find(
-        (item) => item.type === "computer_call",
-      );
-      const functionItem = stepData.output.find(
-        (item) => item.type === "function_call",
-      );
+      const messageItem: OpenAI.Responses.ResponseOutputItem | undefined =
+        stepData.output.find((item) => item.type === "message");
+      const computerItem: OpenAI.Responses.ResponseOutputItem | undefined =
+        stepData.output.find((item) => item.type === "computer_call");
+      const functionItem: OpenAI.Responses.ResponseOutputItem | undefined =
+        stepData.output.find((item) => item.type === "function_call");
 
       if (messageItem && messageItem.content[0].type === "output_text") {
         const newStep: BrowserStep = {
-          text: messageItem.content?.[0].text || "",
+          text: messageItem.content[0].text || "",
           reasoning: "Processing message",
           tool: "MESSAGE",
           stepNumber: stepNumber++,
@@ -195,14 +217,17 @@ export function Chat({ className, ...props }: ChatProps) {
 
         if (!isDuplicate) {
           agentStateRef.current = {
-            ...agentStateRef.current,
             steps: [...agentStateRef.current.steps, newStep],
           };
 
-          setUiState((prev) => ({
-            ...prev,
+          console.log(
+            "agentStateRef.current.steps: ",
+            agentStateRef.current.steps,
+          );
+
+          setUiState({
             steps: agentStateRef.current.steps,
-          }));
+          });
         }
       }
 
@@ -236,10 +261,9 @@ export function Chat({ className, ...props }: ChatProps) {
           ],
         };
 
-        setUiState((prev) => ({
-          ...prev,
+        setUiState({
           steps: agentStateRef.current.steps,
-        }));
+        });
 
         // Handle computer call
         const responseOutputItems: OpenAI.Responses.ResponseOutputItem[] = [];
@@ -274,14 +298,12 @@ export function Chat({ className, ...props }: ChatProps) {
     // Update agent state and UI with the user step
     const updateSteps = (newStep: BrowserStep) => {
       agentStateRef.current = {
-        ...agentStateRef.current,
         steps: [...agentStateRef.current.steps, newStep],
       };
 
-      setUiState((prev) => ({
-        ...prev,
+      setUiState({
         steps: agentStateRef.current.steps,
-      }));
+      });
     };
 
     updateSteps(userStep);
@@ -310,7 +332,7 @@ export function Chat({ className, ...props }: ChatProps) {
   }, []);
 
   return (
-    <div className={cn("flex h-full flex-col", className)} {...props}>
+    <div className={cn("flex h-full flex-col rounded-[20px] overflow-hidden", className)} {...props}>
       <div
         ref={chatContainerRef}
         className="macos:pt-6 flex min-h-0 w-full grow flex-col items-stretch justify-start gap-y-4 overflow-x-hidden overflow-y-auto p-2 pt-2"
@@ -329,10 +351,10 @@ export function Chat({ className, ...props }: ChatProps) {
               className={cn(
                 "relative flex flex-col space-y-3 rounded-lg border-[0.5px] border-neutral-700 p-4 shadow-md",
                 isUserInput
-                  ? "bg-[hsl(0,0%,13%)]"
+                  ? "bg-[hsl(0,0%,20%)]/50"
                   : isSystemMessage
-                    ? "bg-[hsl(0,0%,13%)]"
-                    : "bg-[hsl(0,0%,13%)]",
+                    ? "bg-[hsl(0,0%,50%)]/50"
+                    : "bg-[hsl(0,0%,20%)]/50",
               )}
             >
               <div className="flex items-center justify-between">
@@ -342,138 +364,42 @@ export function Chat({ className, ...props }: ChatProps) {
                 <span
                   className={cn(
                     "h-6 rounded-sm px-2 py-1 text-xs",
-                    ToolToColor[step.tool],
+                    ToolToColor[isSystemMessage ? "CLOSE" : step.tool],
                   )}
                 >
-                  {step.tool}
+                  {isSystemMessage ? "System Message" : ToolToName[step.tool]}
                 </span>
               </div>
-              <div className="font-medium text-neutral-200">
-                {isSystemMessage && step.tool === "MESSAGE" ? (
-                  <>
-                    {(() => {
-                      // Check if this is a message with a question
-                      if (step.text.includes("?")) {
-                        // Find all sentences that end with a question mark
-                        const sentences = step.text.match(/[^.!?]+[.!?]+/g) || [
-                          step.text,
-                        ];
-
-                        // Separate questions from non-questions
-                        const questions = sentences.filter((s) =>
-                          s.trim().endsWith("?"),
-                        );
-                        const nonQuestions = sentences.filter(
-                          (s) => !s.trim().endsWith("?"),
-                        );
-
-                        // Join non-questions as the answer
-                        const answerText = nonQuestions.join(" ").trim();
-
-                        // Join questions as the question
-                        const questionText = questions.join(" ").trim();
-
-                        // Check if the entire message is just a question
-                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const isOnlyQuestion =
-                          step.text.trim() === questionText;
-
-                        // Extract answer content from the message or find it in previous steps
-                        let displayAnswerText = answerText;
-
-                        // If there's no answer content but there is a question
-                        if (!displayAnswerText && questionText) {
-                          // First, check if this step has a specific answer marker
-                          if (step.text.includes("ANSWER:")) {
-                            const answerParts = step.text.split("ANSWER:");
-                            if (answerParts.length > 1) {
-                              // Extract the text after "ANSWER:" and before any "QUESTION" marker
-                              let extractedAnswer = answerParts[1].trim();
-                              if (extractedAnswer.includes("QUESTION")) {
-                                extractedAnswer = extractedAnswer
-                                  .split("QUESTION")[0]
-                                  .trim();
-                              }
-                              if (extractedAnswer) {
-                                displayAnswerText = extractedAnswer;
-                              }
-                            }
-                          }
-
-                          // If we still don't have an answer, look for the first message step
-                          if (!displayAnswerText) {
-                            // Look for relevant information in previous steps
-                            const previousSteps = uiState.steps.slice(0, index);
-
-                            // Find the first informative MESSAGE step that's not a question
-                            const infoStep = previousSteps.find(
-                              (s) =>
-                                s.tool === "MESSAGE" &&
-                                s.text &&
-                                !s.text.includes("?") && // Not a question
-                                s.text.length > 10,
-                            );
-
-                            if (infoStep) {
-                              // Use the content from the informative step
-                              displayAnswerText = infoStep.text;
-                            } else {
-                              // Default message if no relevant info found
-                              displayAnswerText =
-                                "I'm currently searching for this information. The results will be displayed here when available.";
-                            }
-                          }
-                        } else if (!displayAnswerText) {
-                          // For other cases with no answer content
-                          displayAnswerText = step.text;
-                        }
-
-                        // Only render the answer part in this message block
-                        return (
-                          <div className="mb-2">
-                            <div className="mb-1 text-xs font-semibold text-neutral-400">
-                              ANSWER:
-                            </div>
-                            <div className="rounded-md bg-neutral-800/50 p-2">
-                              <span>{displayAnswerText}</span>
-                            </div>
-                          </div>
-                        );
-                      } else {
-                        // For regular messages without questions, format them as answers
-                        return (
-                          <div className="mb-2">
-                            <div className="rounded-md bg-neutral-800/50 p-2">
-                              <span>{step.text}</span>
-                            </div>
-                          </div>
-                        );
-                      }
-                    })()}
-                  </>
-                ) : (
-                  <div className="rounded-md bg-neutral-800/50 p-2">
-                    {step.text}
-                  </div>
-                )}
-              </div>
+              <div className="font-medium text-neutral-200">{step.text}</div>
               {/* Show reasoning for all steps except the last one */}
-              {(!isSystemMessage || index < uiState.steps.length - 1) && (
-                <div className="rounded-md bg-neutral-800/30 p-2 text-sm text-neutral-400">
-                  <span className="font-semibold">Reasoning: </span>
-                  {step.reasoning}
-                </div>
-              )}
+              <div className="rounded-md bg-neutral-800/30 p-2 text-sm text-neutral-400">
+                <span className="font-semibold">Reasoning: </span>
+                {step.reasoning}
+              </div>
             </div>
           );
         })}
+        {uiState.steps.length === 0 && (
+          <div className="flex h-full items-center justify-center text-3xl font-bold text-neutral-400">
+            Welcome
+          </div>
+        )}
       </div>
       <div className="w-full p-4">
-        <div className="w-full rounded-2xl dark:bg-neutral-700">
+        <div
+          className={cn(
+            "relative w-full rounded-2xl border border-neutral-500 dark:bg-neutral-700",
+            isWaitingForInput && "animate-pulse",
+          )}
+        >
           <textarea
             ref={inputRef}
-            className="max-h-56 w-full resize-none overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-sm text-wrap text-neutral-300 outline-none"
-            placeholder="What do you want to do?"
+            className={cn(
+              "max-h-56 w-full resize-none overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-sm text-wrap text-neutral-300 outline-none",
+            )}
+            placeholder={
+              isWaitingForInput ? "What's on your mind?" : "Thinking..."
+            }
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={(e) => {
@@ -489,6 +415,23 @@ export function Chat({ className, ...props }: ChatProps) {
               }
             }}
           />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute right-2 bottom-2 text-neutral-400 hover:text-neutral-300 cursor-pointer"
+            onClick={() => {
+              setIsAgentFinished(true);
+              setUserInput("");
+              setUiState({
+                steps: [],
+              });
+              agentStateRef.current = {
+                steps: [],
+              };
+            }}
+          >
+            <SquarePenIcon className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

@@ -11,7 +11,6 @@ export async function getResponse(
     await computer.init();
     const agent = new Agent("computer-use-preview", computer);
     let result = await agent.getResponse(input, responseId);
-    console.log("agent's responses: ", result);
     return result;
   } catch (error) {
     console.error("Error in processInput:", error);

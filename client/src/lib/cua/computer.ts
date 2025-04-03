@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { currentMonitor } from "@tauri-apps/api/window";
 import { platform } from "@tauri-apps/plugin-os";
-import { getScreenshot } from "../screenshot";
+import { getScreenshot, setHideFromScreenshot } from "../screenshot";
 
 export type Environment = "mac" | "windows" | "ubuntu";
 
@@ -28,7 +28,10 @@ export class TauriComputer {
 
   // returns a base64 encoded image
   async screenshot(): Promise<string> {
+    await setHideFromScreenshot(true);
     const result = await getScreenshot();
+    await setHideFromScreenshot(false);
+    console.log("screenshot taken at ", result.path);
     return result.base64;
   }
 
