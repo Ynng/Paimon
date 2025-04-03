@@ -9,12 +9,7 @@ use std::time::Duration;
 use tauri::{command, AppHandle, Emitter, Runtime};
 
 #[command]
-pub fn click<R: Runtime>(
-    handle: AppHandle<R>,
-    button: &str,
-    x: f64,
-    y: f64,
-) -> Result<(), String> {
+pub fn click<R: Runtime>(handle: AppHandle<R>, button: &str, x: f64, y: f64) -> Result<(), String> {
     log::info!("agent: clicking at {}, {}", x, y);
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
