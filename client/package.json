@@ -10,15 +10,21 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.2",
     "@tailwindcss/vite": "^4.1.1",
     "@tanstack/react-router": "^1.114.32",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "core": "link:@tauri-apps/api/core",
+    "lucide-react": "^0.487.0",
     "posthog-js": "^1.234.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwindcss": "^4.1.1"
+    "tailwind-merge": "^3.1.0",
+    "tailwindcss": "^4.1.1",
+    "tw-animate-css": "^1.2.5"
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",

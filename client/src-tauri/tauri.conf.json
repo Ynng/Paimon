@@ -33,6 +33,7 @@
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": false,
+        "decorations": false,
         "titleBarStyle": "Overlay",
         "windowEffects": {
           "effects": [

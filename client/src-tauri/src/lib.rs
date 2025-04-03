@@ -3,40 +3,26 @@ use tauri::{
     ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager,
     PhysicalPosition, PhysicalSize, WebviewWindow,
 };
-use tauri_nspanel::{cocoa::appkit::NSWindowCollectionBehavior, panel_delegate, WebviewWindowExt};
+use tauri_nspanel::{
+    cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior},
+    panel_delegate, Panel, WebviewWindowExt,
+};
 mod commands;
 
 #[allow(non_upper_case_globals)]
 const NSWindowStyleMaskNonActivatingPanel: i32 = 1 << 7;
 #[allow(non_upper_case_globals)]
-const NSResizableWindowMask: i32 = 1 << 3;
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 
-fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) {
+fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) -> Result<Panel, String> {
     // macos window to ns_panel plugin
     let _ = app_handle.plugin(tauri_nspanel::init());
 
     // Hide the app icon in the dock
-    // let _ = app_handle.set_activation_policy(ActivationPolicy::Accessory);
-
-    // Convert ns_window to ns_panel
-    let panel = window.to_panel().unwrap();
-
-    // Set window level as screen saver
-    panel.set_level(1000);
-
-    // Don't steal focus from other windows and support resizing
-    panel.set_style_mask(NSWindowStyleMaskNonActivatingPanel | NSResizableWindowMask);
-
-    // Share window across desktop spaces and fullscreen
-    panel.set_collection_behaviour(
-        NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorStationary
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary,
-    );
+    let panel = window.to_panel().map_err(|e| e.to_string())?;
 
     // Define panel delegate to listen for window events
     let delegate = panel_delegate!(EcoPanelDelegate {
@@ -81,6 +67,8 @@ fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) {
 
     // Set the window's delegate object for handling window events
     panel.set_delegate(delegate);
+
+    Ok(panel)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -89,13 +77,38 @@ pub fn run() {
         .plugin(tauri_plugin_screenshots::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let overlay_window = app.get_webview_window("overlay").unwrap();
+            let overlay_window = app
+                .get_webview_window("overlay")
+                .expect("Failed to get overlay window");
+            let spotlight_window = app
+                .get_webview_window("spotlight")
+                .expect("Failed to get spotlight window");
 
             // Setup NSPanel for macOS
             #[cfg(target_os = "macos")]
             {
+                // let _ = app_handle.set_activation_policy(ActivationPolicy::Accessory);
                 let mut app_ref = app.handle().clone();
-                setup_nspanel(&mut app_ref, overlay_window.clone());
+                let overlay_panel = setup_nspanel(&mut app_ref, overlay_window.clone())
+                    .expect("Failed to setup overlay panel");
+                // Set window level as screen saver
+                overlay_panel.set_level(1000);
+                overlay_panel.set_style_mask(NSWindowStyleMaskNonActivatingPanel);
+                overlay_panel.set_collection_behaviour(
+                    NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorStationary
+                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary,
+                );
+
+                let spotlight_panel = setup_nspanel(&mut app_ref, spotlight_window.clone())
+                    .expect("Failed to setup spotlight panel");
+                spotlight_panel.set_level(NSMainMenuWindowLevel + 1);
+                spotlight_panel.set_style_mask(NSWindowStyleMaskNonActivatingPanel);
+                spotlight_panel.set_collection_behaviour(
+                    NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorStationary
+                        | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary,
+                );
             }
             overlay_window
                 .set_ignore_cursor_events(true)
@@ -153,8 +166,6 @@ pub fn run() {
                     height: monitor_size.height,
                 }))
                 .unwrap_or_else(|err| println!("Failed to set size: {:?}", err));
-
-            let spotlight_window = app.get_webview_window("spotlight").unwrap();
 
             // Set width to 400px
             let window_width = (400.0 * monitor_scale_factor) as u32;

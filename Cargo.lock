@@ -836,6 +836,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "git+https://github.com/stella-labs/dotenvy?branch=master#8cd3d3af6c7cfde9001444e1ad5e61778041ea10"
+
+[[package]]
+name = "dotenvy_macro"
+version = "0.15.7"
+source = "git+https://github.com/stella-labs/dotenvy?branch=master#8cd3d3af6c7cfde9001444e1ad5e61778041ea10"
+dependencies = [
+ "dotenvy",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "dpi"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2525,6 +2541,7 @@ name = "paimon"
 version = "0.1.0"
 dependencies = [
  "cocoa",
+ "dotenvy_macro",
  "objc",
  "serde",
  "serde_json",

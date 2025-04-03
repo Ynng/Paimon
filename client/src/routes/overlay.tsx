@@ -9,7 +9,7 @@ function Overlay() {
     <div className="relative h-full w-full">
       <div className="apple-intelligence-bg absolute inset-0" />
       <div className="flex h-full w-full items-center justify-center">
-        <div className="text-4xl font-semibold text-black dark:text-white">
+        <div className="text-4xl font-semibold text-gray-500">
           Hello from Overlay!
         </div>
       </div>

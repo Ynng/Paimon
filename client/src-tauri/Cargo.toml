@@ -18,11 +18,16 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["macos-private-api"] }
+tauri = { version = "2", features = [
+    "macos-private-api",
+    "devtools",
+    "tray-icon",
+] }
 tauri-plugin-opener = "2"
 tauri-plugin-screenshots = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+dotenvy_macro = { git = "https://github.com/stella-labs/dotenvy", branch = "master" }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2" }
