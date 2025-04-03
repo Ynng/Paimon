@@ -18,9 +18,24 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [hide, setHide] = useState(false);
   return (
-    <div className="macos:pt-6 h-full p-2 pt-2">
-      <div className="macos:h-10 absolute h-0" data-tauri-drag-region />
-      <h3>Welcome Home!</h3>
+    <div className="flex h-full flex-col">
+      <div
+        className="macos:pt-6 flex min-h-0 w-full grow items-center justify-center p-2 pt-2"
+        data-tauri-drag-region
+      >
+        <div className="text-4xl font-semibold text-gray-500 select-none">
+          Placeholder
+        </div>
+      </div>
+      <div className="w-full p-4">
+        <div className="w-full rounded-2xl dark:bg-neutral-700">
+          <textarea
+            className="max-h-56 w-full resize-none overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-sm text-wrap text-neutral-300 outline-none"
+            placeholder="What do you want to do?"
+          />
+        </div>
+      </div>
+      {/* <h3>Welcome Home!</h3>
       <Button
         variant="secondary"
         onClick={() => {
@@ -29,7 +44,7 @@ function Index() {
         }}
       >
         {hide ? "Show" : "Hide"} from screenshot
-      </Button>
+      </Button> */}
     </div>
   );
 }
