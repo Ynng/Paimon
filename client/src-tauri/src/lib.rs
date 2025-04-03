@@ -1,7 +1,6 @@
 use cocoa::appkit::NSWindow;
 use tauri::{
-    ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager,
-    PhysicalPosition, PhysicalSize, WebviewWindow,
+    async_runtime, ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition, Manager, PhysicalPosition, PhysicalSize, WebviewWindow
 };
 use tauri_nspanel::{
     cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior},
@@ -74,8 +73,30 @@ fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) -> Result<Pa
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_single_instance::init(|handle, _args, _cwd| {
+            log::info!("single instance plugin");
+            log::info!("a new app instance was opened with args: {:?}", _args);
+            log::info!("current working directory: {:?}", _cwd);
+            log::info!("attempting to show main windows");
+            let handle_clone = handle.clone();
+            let runtime = async_runtime::handle();
+            runtime.spawn(async move {
+                let overlay_window = handle_clone
+                    .get_webview_window("overlay")
+                    .expect("Failed to get overlay window");
+                let spotlight_window = handle_clone
+                    .get_webview_window("spotlight")
+                    .expect("Failed to get spotlight window");
+                overlay_window.show().unwrap();
+                spotlight_window.show().unwrap();
+            });
+        }))
         .plugin(tauri_plugin_screenshots::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_macos_permissions::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_os::init())
         .setup(|app| {
             let overlay_window = app
                 .get_webview_window("overlay")
@@ -207,7 +228,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::windowing::set_hide_from_screenshot
+            commands::windowing::set_hide_from_screenshot,
+            commands::image::get_screenshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

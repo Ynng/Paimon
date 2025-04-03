@@ -1,7 +1,11 @@
+import { Chat } from "@/components/ai/chat";
 import { Button } from "@/components/ui/button";
+import { openai } from "@/lib/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
+  currentMonitor,
+  getCurrentWindow,
   LogicalPosition,
   LogicalSize,
   PhysicalPosition,
@@ -15,36 +19,43 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+// const response = await openai.responses.create({
+//   model: "computer-use-preview",
+//   previous_response_id: "<previous_response_id>",
+//   tools: [
+//     {
+//       type: "computer-preview",
+//       display_width: 1024,
+//       display_height: 768,
+//       environment: "mac",
+//     },
+//   ],
+//   input: [
+//     {
+//       type: "computer_call_output",
+//       call_id: "<call_id>",
+//       acknowledged_safety_checks: [
+//         {
+//           id: "<safety_check_id>",
+//           code: "malicious_instructions",
+//           message:
+//             "We've detected instructions that may cause your application to perform malicious or unauthorized actions. Please acknowledge this warning if you'd like to proceed.",
+//         },
+//       ],
+//       output: {
+//         type: "computer_screenshot",
+//         image_url: "<image_url>",
+//       },
+//     },
+//   ],
+//   truncation: "auto",
+// });
+
+// console.log(response.tool_choice);
+
 function Index() {
   const [hide, setHide] = useState(false);
-  return (
-    <div className="flex h-full flex-col">
-      <div
-        className="macos:pt-6 flex min-h-0 w-full grow items-center justify-center p-2 pt-2"
-        data-tauri-drag-region
-      >
-        <div className="text-4xl font-semibold text-gray-500 select-none">
-          Placeholder
-        </div>
-      </div>
-      <div className="w-full p-4">
-        <div className="w-full rounded-2xl dark:bg-neutral-700">
-          <textarea
-            className="max-h-56 w-full resize-none overflow-x-hidden overflow-y-auto rounded-2xl p-4 text-sm text-wrap text-neutral-300 outline-none"
-            placeholder="What do you want to do?"
-          />
-        </div>
-      </div>
-      {/* <h3>Welcome Home!</h3>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          invoke("set_hide_from_screenshot", { hide: !hide });
-          setHide(!hide);
-        }}
-      >
-        {hide ? "Show" : "Hide"} from screenshot
-      </Button> */}
-    </div>
-  );
+  const display_width = currentMonitor().then((monitor) => monitor?.size.width);
+
+  return <Chat />;
 }

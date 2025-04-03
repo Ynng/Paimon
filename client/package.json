@@ -14,7 +14,11 @@
     "@tailwindcss/vite": "^4.1.1",
     "@tanstack/react-router": "^1.114.32",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-fs": "~2.2.1",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-os": "^2.2.1",
+    "axios": "^1.8.4",
+    "axios-retry": "^4.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "core": "link:@tauri-apps/api/core",
@@ -25,6 +29,7 @@
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.1.0",
     "tailwindcss": "^4.1.1",
+    "tauri-plugin-macos-permissions-api": "^2.2.0",
     "tw-animate-css": "^1.2.5"
   },
   "devDependencies": {
