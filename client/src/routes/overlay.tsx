@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSessionStorage } from "usehooks-ts";
 
@@ -100,6 +101,7 @@ function Overlay() {
   >([]);
   const indicatorLifetime = 2000; // 2 seconds
   const circleLifetime = 2000; // 2 seconds
+  const show = isWaitingForAgent;
 
   // Clean up old indicators and effects using animation frames
   useAnimationFrame(() => {
@@ -211,11 +213,15 @@ function Overlay() {
   }, []);
 
   return (
-    <div className="pointer-events-none relative h-full w-full overflow-hidden">
+    <div className={
+      cn(
+        "pointer-events-none relative h-full w-full overflow-hidden",
+        show ? "opacity-100" : "opacity-0",
+      )
+    }>
       <div
         className={cn(
           "apple-intelligence-bg absolute inset-0",
-          !isWaitingForAgent && "opacity-0",
         )}
       />
 

@@ -42,7 +42,7 @@
   html,
   body,
   #root {
-    @apply m-0 h-full bg-transparent p-0;
+    @apply m-0 h-full overscroll-none bg-transparent p-0;
   }
 }
 

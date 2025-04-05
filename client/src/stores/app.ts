@@ -1,6 +1,5 @@
 import { Monitor } from '@tauri-apps/api/window';
 import { proxy } from 'valtio'
-import { Response } from '@/lib/openai';
 
 export type AppStore = {
     screenshotting: boolean;

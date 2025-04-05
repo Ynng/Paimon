@@ -389,7 +389,7 @@ export function Chat({ className, ...props }: ChatProps) {
     } catch (error) {
       console.error("Error handling user input:", error);
       const errorStep: BrowserStep = {
-        text: "Sorry, there was an error processing your request. Please try again.",
+        text: "Sorry, there was an error processing your request: " + error,
         type: "system_msg",
         tool: "MESSAGE",
         stepNumber: agentStateRef.current.steps.length + 1,
@@ -405,7 +405,7 @@ export function Chat({ className, ...props }: ChatProps) {
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-[20px]",
+        "flex h-full flex-col overflow-hidden rounded-[20px] overscroll-none",
         className,
       )}
       {...props}

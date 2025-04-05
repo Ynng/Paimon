@@ -1,12 +1,18 @@
-use cocoa::appkit::NSWindow;
 use tauri::{
-    async_runtime, ActivationPolicy, App, AppHandle, Emitter, EventTarget, LogicalPosition,
+    async_runtime, App, AppHandle, Emitter, EventTarget, LogicalPosition,
     Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
 };
+
+#[cfg(target_os = "macos")]
 use tauri_nspanel::{
     cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior},
     panel_delegate, Panel, WebviewWindowExt,
 };
+#[cfg(target_os = "macos")]
+use tauri::ActivationPolicy;
+#[cfg(target_os = "macos")]
+use cocoa::appkit::NSWindow;
+
 mod commands;
 
 #[allow(non_upper_case_globals)]
@@ -17,6 +23,7 @@ const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 
+#[cfg(target_os = "macos")]
 fn setup_nspanel(app_handle: &mut AppHandle, window: WebviewWindow) -> Result<Panel, String> {
     // macos window to ns_panel plugin
     let _ = app_handle.plugin(tauri_nspanel::init());
