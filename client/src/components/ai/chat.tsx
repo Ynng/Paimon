@@ -535,11 +535,8 @@ export function Chat({ className, ...props }: ChatProps) {
             variant="ghost"
             className="absolute right-8 bottom-2 cursor-pointer text-neutral-400 hover:text-neutral-300"
             onClick={() => {
-              invoke("scroll", {
-                x: 200,
-                y: 200,
-                scrollX: 0,
-                scrollY: 1,
+              invoke("set_hide_from_screenshot", {
+                hide: true,
               });
             }}
           >
