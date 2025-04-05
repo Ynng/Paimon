@@ -196,7 +196,6 @@ export function Chat({ className, ...props }: ChatProps) {
 
   // Add global shortcut for toggling agent state
   const toggleAgent = useCallback(() => {
-    alert("toggleAgent");
     if (isWaitingForAgentRef.current) {
       // Stop the agent
       setIsWaitingForAgent(false);

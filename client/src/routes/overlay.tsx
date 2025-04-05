@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import { platform } from "@tauri-apps/plugin-os";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSessionStorage } from "usehooks-ts";
 
@@ -102,6 +103,17 @@ function Overlay() {
   const indicatorLifetime = 2000; // 2 seconds
   const circleLifetime = 2000; // 2 seconds
   const show = isWaitingForAgent;
+  const [monitorScale, setMonitorScale] = useState<number | null>(null);
+
+  useEffect(() => {
+    const setupMonitorScale = async () => {
+      const monitor = await currentMonitor();
+      const os = await platform();
+      const monitorScale = os === "macos" ? 1 : monitor?.scaleFactor ?? 1;
+      setMonitorScale(monitorScale);
+    };
+    setupMonitorScale();
+  }, []);
 
   // Clean up old indicators and effects using animation frames
   useAnimationFrame(() => {
@@ -126,6 +138,7 @@ function Overlay() {
   }, []);
 
   useEffect(() => {
+    if (!monitorScale) return;
     // Set up event listeners
     const unlisteners: Promise<UnlistenFn>[] = [];
 
@@ -143,8 +156,10 @@ function Overlay() {
         };
 
         if (payload.x !== undefined && payload.y !== undefined) {
-          newIndicator.x = payload.x;
-          newIndicator.y = payload.y;
+          const x = payload.x / monitorScale;
+          const y = payload.y / monitorScale;
+          newIndicator.x = x;
+          newIndicator.y = y;
 
           // Add circle effect for click-like actions
           if (LOCATION_BASED_ACTIONS.includes(eventName)) {
@@ -154,8 +169,8 @@ function Overlay() {
               ...prev,
               {
                 id: Date.now() + Math.random(),
-                x: payload.x!,
-                y: payload.y!,
+                x,
+                y,
                 color: circleColor,
                 timestamp: Date.now(),
               },
@@ -210,7 +225,7 @@ function Overlay() {
         unlisteners.forEach((unlisten) => unlisten());
       });
     };
-  }, []);
+  }, [monitorScale]);
 
   return (
     <div className={

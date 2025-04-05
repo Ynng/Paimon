@@ -11,13 +11,14 @@ export class TauriComputer {
   dimensions: [number, number] = [0, 0];
   async init(): Promise<this> {
     const monitor = await currentMonitor();
+    const os = await platform();
     if (!monitor) throw new Error("No monitor found");
+    const monitorScale = os === "macos" ? monitor.scaleFactor : 1;
     this.dimensions = [
-      monitor.size.width / monitor.scaleFactor,
-      monitor.size.height / monitor.scaleFactor,
+      monitor.size.width / monitorScale,
+      monitor.size.height / monitorScale,
     ];
     console.log("computer dimensions", this.dimensions);
-    const os = await platform();
     if (os === "macos") {
       this.environment = "mac";
     } else if (os === "windows") {
