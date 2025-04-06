@@ -85,6 +85,7 @@ export class TauriComputer {
   }
 
   async drag(path: { x: number; y: number }[]): Promise<void> {
-    await invoke("drag", { path });
+    const pathTuples = path.map((p) => [p.x, p.y]);
+    await invoke("drag", { path: pathTuples });
   }
 }

@@ -120,29 +120,52 @@ export class Agent {
   ): Promise<OpenAI.Responses.ResponseInputItem.ComputerCallOutput> {
     const action = computerItem.action;
     const actionType = action.type;
-    const actionArgs = Object.fromEntries(
-      Object.entries(action).filter(([key]) => key !== "type"),
-    );
-
     if (this.printSteps) {
       console.log("computerItem", computerItem);
-      console.log(`${actionType}(${JSON.stringify(actionArgs)})`);
+      console.log(`${actionType}(${JSON.stringify(action)})`);
     }
-
     if (!this.computer) {
       throw new Error("Computer not initialized");
     }
+    // "click" | "double_click" | "drag" | "keypress" | "move" | "screenshot" | "scroll" | "type" | "wait"
+    switch (actionType) {
+      case "click":
+        await this.computer.click(action.button, action.x, action.y);
+        break;
+      case "double_click":
+        await this.computer.double_click(action.x, action.y);
+        break;
+      case "drag":
+        await this.computer.drag(action.path);
+        break;
+      case "keypress":
+        await this.computer.keypress(action.keys);
+        break;
+      case "move":
+        await this.computer.move(action.x, action.y);
+        break;
+      case "screenshot":
+        // we already take screenshots
+        // await this.computer.screenshot();
+        break;
+      case "scroll":
+        await this.computer.scroll(action.x, action.y, action.scroll_x, action.scroll_y);
+        break;
+      case "type":
+        await this.computer.type(action.text);
+        break;
+      case "wait":
+        // don't wait
+        // await this.computer.wait();
+        break;
+      default:
+        throw new Error(`Unknown action type: ${actionType}`);
+    }
 
-    const method = (this.computer as unknown as Record<string, unknown>)[
-      actionType
-    ] as (...args: unknown[]) => unknown;
-    await method.apply(this.computer, Object.values(actionArgs));
-
-    // wait 300ms
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // wait 500ms
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const screenshot = await this.computer.screenshot();
-
     const pendingChecks = computerItem.pending_safety_checks || [];
     for (const check of pendingChecks) {
       const message = check.message;
