@@ -3,23 +3,25 @@
 Paimon is a computer autopilot software.
 It's not a chatbot, it performs tasks for you, on your computer, using your keyboard and mouse.
 
+It supports BOTH MACOS and WINDOWS.
+
 Current limitations:
 
-- Only works on MacOS
-- No way to pause execution
+- Interrupting the agent is sketchy
 - Only works on the primary monitor
-- Does not support hidpi
 
 ## Roadmap
 
 - [x] Implement CUA loop
-- [ ] Better prompting
+- [x] Windows support
+- [x] hiDPI support
+- [x] Better prompting
 - [ ] Nicer looking overlay
-- [ ] Windows support
 - [ ] Linux support
 - [ ] Fix UI for multi-monitor setups
 - [ ] Introduce hosted solution with simplified access
 - [ ] Voice control
+- [ ] Linux support
 
 ## Acknowledgements
 
