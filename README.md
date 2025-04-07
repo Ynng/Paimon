@@ -16,11 +16,11 @@ Current limitations:
 - [x] Windows support
 - [x] hiDPI support
 - [x] Better prompting
+- [ ] Voice control
 - [ ] Nicer looking overlay
 - [ ] Linux support
 - [ ] Fix UI for multi-monitor setups
 - [ ] Introduce hosted solution with simplified access
-- [ ] Voice control
 - [ ] Linux support
 
 ## Acknowledgements
